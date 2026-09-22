@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Spazio Luce · Sistema de Gestión</title>
+<meta name="theme-color" content="#0B0B09" />
+<meta name="description" content="Sistema de cotizaciones y presupuestos de Spazio Luce" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Spazio Luce" />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icons/icon-192.png" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+<link rel="stylesheet" href="css/styles.css" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="logo-wrap"><img src="assets/logo.jpg" alt="Spazio Luce" /></div>
+    <div class="card" id="loginFormCard">
+      <h1 id="authTitle">Iniciar sesión</h1>
+      <div class="sub" id="authSub">Acceso al sistema de gestión · Spazio Luce</div>
+      <div class="field">
+        <label>Correo</label>
+        <div class="input-wrap"><input id="loginUser" type="email" placeholder="tucorreo@ejemplo.com" /></div>
+      </div>
+      <div class="field">
+        <label>Contraseña</label>
+        <div class="input-wrap"><input id="loginPass" type="password" placeholder="••••••••" /></div>
+      </div>
+      <button class="btn-primary" id="authSubmitBtn" onclick="handleAuthSubmit()">Entrar</button>
+      <div id="loginError" class="login-err hidden"></div>
+      <div class="setup-note">
+        <button type="button" id="toggleSignupBtn" class="link-btn" onclick="toggleSignupMode()">¿Primera vez? Crear tu cuenta</button>
+        <button type="button" class="link-btn" onclick="showForgotPassword()">¿Olvidaste tu contraseña?</button>
+      </div>
+    </div>
+
+    <div class="card hidden" id="forgotBox">
+      <h1>Restablecer contraseña</h1>
+      <div class="sub">Te mandamos un enlace a tu correo para poner una contraseña nueva.</div>
+      <div class="field">
+        <label>Correo</label>
+        <div class="input-wrap"><input id="forgotEmail" type="email" placeholder="tucorreo@ejemplo.com" /></div>
+      </div>
+      <button class="btn-primary" onclick="sendPasswordReset()">Enviar enlace</button>
+      <div id="forgotMsg" class="login-err hidden"></div>
+      <div class="setup-note">
+        <button type="button" class="link-btn" onclick="hideForgotPassword()">Volver a iniciar sesión</button>
+      </div>
+    </div>
+
+    <div class="card hidden" id="resetPasswordBox">
+      <h1>Nueva contraseña</h1>
+      <div class="sub">Escribe tu nueva contraseña para el Sistema de Gestión.</div>
+      <div class="field">
+        <label>Nueva contraseña</label>
+        <div class="input-wrap"><input id="newPassword" type="password" placeholder="Mínimo 6 caracteres" /></div>
+      </div>
+      <div class="field">
+        <label>Confirmar contraseña</label>
+        <div class="input-wrap"><input id="newPasswordConfirm" type="password" placeholder="Repite la contraseña" /></div>
+      </div>
+      <button class="btn-primary" onclick="confirmNewPassword()">Guardar contraseña</button>
+      <div id="resetPasswordMsg" class="login-err hidden"></div>
+    </div>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+  <aside>
+    <div class="sidebar-logo"><img src="assets/logo.jpg" alt="Spazio Luce" /></div>
+    <div class="nav-section-title">Menú</div>
+    <nav>
+      <button class="nav-item active" data-view="dashboard" onclick="showView('dashboard')">📊 Dashboard</button>
+      <button class="nav-item" data-view="clientes" onclick="showView('clientes')">👤 Clientes</button>
+      <button class="nav-item" data-view="cotizador" onclick="showView('cotizador')">🧾 Cotizador</button>
+      <button class="nav-item" data-view="presupuestos" onclick="showView('presupuestos')">📋 Presupuestos</button>
+      <button class="nav-item" data-view="contabilidad" onclick="showView('contabilidad')">💵 Contabilidad</button>
+      <a class="nav-item" href="crm/" style="text-decoration:none;">🗂️ CRM</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-pill">
+        <span id="currentUserLabel">—</span>
+        <button class="logout-btn" onclick="handleLogout()">Salir</button>
+      </div>
+    </div>
+  </aside>
+
+  <main>
+    <div id="view-dashboard">
+      <div class="topbar">
+        <div>
+          <h2>Dashboard</h2>
+          <div class="sub" id="dashboardDate"></div>
+        </div>
+        <button class="btn-accent-sm" onclick="showView('cotizador')">+ Nueva cotización</button>
+      </div>
+      <div class="cards-grid" id="statsGrid"></div>
+      <div class="panels-grid">
+        <div class="panel">
+          <h3>Clientes registrados</h3>
+          <div id="dashClientsList"></div>
+        </div>
+        <div class="panel">
+          <h3>Cotizaciones (todas)</h3>
+          <div id="dashQuotesList"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="view-clientes" class="hidden">
+      <div class="topbar">
+        <div><h2>Clientes</h2><div class="sub">Todos los clientes registrados en el sistema · haz clic en uno para ver su ficha completa</div></div>
+        <button class="btn-accent-sm" style="width:auto;" onclick="openClienteModal(null)">+ Nuevo cliente</button>
+      </div>
+      <div class="panel">
+        <table>
+          <thead><tr><th>Cliente</th><th>Teléfono</th><th>Cotizaciones</th><th>Última cotización</th><th>Total cotizado</th></tr></thead>
+          <tbody id="clientsTableBody"></tbody>
+        </table>
+        <div id="clientsEmpty" class="empty-state hidden">Aún no hay clientes. Se agregan automáticamente al generar una cotización.</div>
+      </div>
+    </div>
+
+    <div id="clienteModal" class="hidden" style="position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:200; display:flex; align-items:center; justify-content:center; padding:20px;">
+      <div class="card" style="max-width:480px; width:100%; max-height:86vh; overflow-y:auto;">
+        <h1 style="font-size:17px;" id="clienteModalTitle">Cliente</h1>
+        <div class="field">
+          <label>Nombre</label>
+          <div class="input-wrap"><input id="clienteNombre" /></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>Teléfono</label><div class="input-wrap"><input id="clienteTelefono" placeholder="10 dígitos" /></div></div>
+          <div class="field"><label>Email</label><div class="input-wrap"><input type="email" id="clienteEmail" /></div></div>
+        </div>
+        <div class="field">
+          <label>Dirección</label>
+          <div class="input-wrap"><input id="clienteDireccion" /></div>
+        </div>
+        <div class="field">
+          <label>Notas</label>
+          <div class="input-wrap"><textarea id="clienteNotas" rows="3" style="width:100%; resize:vertical;"></textarea></div>
+        </div>
+        <button class="btn-primary" onclick="saveCliente()">Guardar</button>
+        <button class="link-btn" style="display:block; margin:14px auto 0;" onclick="closeClienteModal()">Cerrar</button>
+        <div id="clienteHistorial" style="margin-top:18px;"></div>
+      </div>
+    </div>
+
+    <div id="view-cotizador" class="hidden">
+      <div class="topbar">
+        <div><h2>Cotizador</h2><div class="sub">Genera una nueva cotización · agrega todos los productos que necesites, sin límite</div></div>
+      </div>
+      <div class="quote-form">
+        <div class="form-row">
+          <div class="field">
+            <label>Nombre del cliente</label>
+            <div class="input-wrap"><input id="quoteClient" placeholder="Nombre completo" /></div>
+          </div>
+          <div class="field">
+            <label>Folio</label>
+            <div class="input-wrap"><input id="quoteFolio" disabled /></div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label>Teléfono (WhatsApp)</label>
+            <div class="input-wrap"><input id="quotePhone" placeholder="10 dígitos" /></div>
+          </div>
+          <div class="field">
+            <label>Correo (opcional)</label>
+            <div class="input-wrap"><input id="quoteEmail" placeholder="correo@ejemplo.com" /></div>
+          </div>
+          <div class="field">
+            <label>Dirección / Proyecto (opcional)</label>
+            <div class="input-wrap"><input id="quoteAddress" placeholder="Ubicación o nombre del proyecto" /></div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label>Nota / alcance incluido (opcional)</label>
+            <div class="input-wrap"><input id="quoteNote" placeholder="Ej: partida de bodega incluida..." /></div>
+          </div>
+        </div>
+
+        <div class="quickadd-box">
+          <div class="quickadd-label">Agregado rápido</div>
+          <div class="quickadd-row">
+            <div class="input-wrap" style="flex:1;">
+              <input id="quickAdd" placeholder='Ej. "15 m2 de tapiz acanalado" o "3 paneles led 12w"' onkeydown="if(event.key==='Enter'){event.preventDefault();handleQuickAdd();}" />
+            </div>
+            <button class="btn-accent-sm" style="width:auto;" onclick="handleQuickAdd()">+ Agregar</button>
+          </div>
+          <div id="quickAddSuggestions"></div>
+        </div>
+
+        <div class="catalog-box">
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+            <button class="btn-ghost-sm lab-active" id="ivaToggleBtn" type="button" onclick="toggleIva()">🧾 IVA incluido (16%)</button>
+            <button class="btn-ghost-sm" id="labToggleBtn" type="button" onclick="toggleLabPrice()">💰 Ver precio LAB</button>
+          </div>
+          <div class="catalog-tabs" id="catalogTabs"></div>
+          <div class="input-wrap" style="margin-bottom:10px;">
+            <input id="catalogSearch" placeholder="Buscar producto por nombre..." oninput="renderCatalogItems()" />
+          </div>
+          <div class="catalog-items" id="catalogItems"></div>
+        </div>
+
+        <div class="col-headers">
+          <div>Producto</div><div>Cant.</div><div>P. Unitario</div><div>Importe</div><div></div>
+        </div>
+        <div id="productRows"></div>
+        <button class="add-row-btn" onclick="addProductRow()">+ Agregar producto manual</button>
+        <input type="file" id="excelInput" accept=".xlsx,.xls,.csv,.pdf" class="hidden" onchange="handleFileImport(event)" />
+        <button class="add-row-btn" style="margin-top:8px;border-color:var(--accent);color:var(--accent);" onclick="document.getElementById('excelInput').click()">📥 Importar desde Excel o PDF</button>
+        <p style="font-size:11px;color:var(--text-secondary);margin:6px 2px 0;">
+          Excel: columnas <b>Producto</b>, <b>Cantidad</b> y <b>Precio Unitario</b> (y opcional Sección/Unidad). PDF: intenta leer tablas de precios o cotizaciones automáticamente — revisa siempre lo que se agregó antes de generar, la lectura de PDF no es perfecta.
+        </p>
+
+        <div class="totals-box">
+          <div class="grand">Total: <span id="totalVal">$0.00</span></div>
+        </div>
+      </div>
+      <button class="btn-primary" style="max-width:260px" onclick="generateQuote()">📄 Generar Cotización</button>
+    </div>
+
+    <div id="view-presupuestos" class="hidden">
+      <div class="topbar">
+        <div><h2>Presupuestos</h2><div class="sub">Sube un presupuesto ya armado (Excel, PDF o Word) y conviértelo al formato Spazio Luce — no usa el catálogo de productos</div></div>
+      </div>
+
+      <div class="quote-form">
+        <input type="file" id="presuFileInput" accept=".xlsx,.xls,.csv,.pdf,.docx" class="hidden" onchange="handlePresuFileImport(event)" />
+        <button class="btn-primary" style="max-width:340px;" onclick="document.getElementById('presuFileInput').click()">📥 Subir presupuesto (Excel, PDF o Word)</button>
+        <p style="font-size:11px;color:var(--text-secondary);margin:8px 2px 0;">
+          Detecta secciones (ej. Herrería, Plomería), folio, fecha y nota si vienen en el documento. La lectura de PDF/Word no es perfecta — siempre revisa los renglones antes de generar.
+        </p>
+      </div>
+
+      <div class="quote-form">
+        <div class="form-row">
+          <div class="field">
+            <label>Cliente</label>
+            <div class="input-wrap"><input id="presuClient" placeholder="Nombre del cliente" /></div>
+          </div>
+          <div class="field">
+            <label>Proyecto</label>
+            <div class="input-wrap"><input id="presuProject" placeholder="Ej. Dpto. Av. 20 de Noviembre No. 30" /></div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label>Folio</label>
+            <div class="input-wrap"><input id="presuFolio" placeholder="Se genera automático si lo dejas vacío" /></div>
+          </div>
+          <div class="field">
+            <label>Fecha</label>
+            <div class="input-wrap"><input id="presuFecha" type="date" oninput="this.dataset.auto=''" /></div>
+          </div>
+          <div class="field">
+            <label>Teléfono / Correo (opcional, para WhatsApp y correo)</label>
+            <div class="input-wrap"><input id="presuContact" placeholder="10 dígitos o correo" /></div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label>Nota</label>
+            <div class="input-wrap"><input id="presuNote" placeholder="Ej: W.C. y lavabo los proporciona el cliente" /></div>
+          </div>
+        </div>
+
+        <label class="iva-toggle">
+          <input type="checkbox" id="presuIvaToggle" onchange="recalcPresuTotals()" />
+          Incluir IVA 16% en el total (opcional — nunca se le desglosa al cliente en el PDF)
+        </label>
+
+        <div class="col-headers" style="grid-template-columns: 1.6fr 2fr .7fr .6fr .8fr .9fr auto;">
+          <div>Sección</div><div>Concepto</div><div>Un</div><div>Cant</div><div>P. Unitario</div><div>Importe</div><div></div>
+        </div>
+        <div id="presupuestoRows" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;"></div>
+        <button class="add-row-btn" onclick="addPresuRow()">+ Agregar renglón manual</button>
+
+        <div class="totals-box">
+          <div>Subtotal: <span id="presuSubtotalVal">$0.00</span></div>
+          <div>IVA: <span id="presuIvaVal">No incluido</span></div>
+          <div class="grand">Total: <span id="presuTotalVal">$0.00</span></div>
+        </div>
+      </div>
+      <button class="btn-primary" style="max-width:320px" onclick="generatePresupuesto()">📄 Generar Presupuesto Spazio Luce</button>
+    </div>
+
+    <div id="view-contabilidad" class="hidden">
+      <div class="topbar">
+        <div><h2>Contabilidad</h2><div class="sub">Ingresos (cotizaciones pagadas) y egresos del negocio, por mes</div></div>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <div class="input-wrap" style="padding:8px 12px;"><input type="month" id="contaMes" onchange="refreshContabilidad()" /></div>
+          <button class="btn-ghost-sm" id="contaExportBtn" onclick="exportContabilidadCsv()">⬇️ Exportar CSV</button>
+        </div>
+      </div>
+
+      <div class="cards-grid" id="contaStatsGrid"></div>
+
+      <div class="panels-grid">
+        <div class="panel">
+          <h3>Cotizaciones pagadas este mes</h3>
+          <div id="contaIngresosList" style="max-height:360px; overflow-y:auto;"></div>
+        </div>
+        <div class="panel">
+          <h3>Gastos</h3>
+          <div class="form-row" style="margin-bottom:10px;">
+            <div class="field"><label>Fecha</label><div class="input-wrap"><input type="date" id="gastoFecha" /></div></div>
+            <div class="field"><label>Concepto</label><div class="input-wrap"><input id="gastoConcepto" placeholder="Ej. Material eléctrico" /></div></div>
+          </div>
+          <div class="form-row" style="margin-bottom:10px;">
+            <div class="field"><label>Categoría</label><div class="input-wrap"><input id="gastoCategoria" placeholder="Materiales / Nómina / Renta / Transporte…" /></div></div>
+            <div class="field"><label>Proveedor</label><div class="input-wrap"><input id="gastoProveedor" placeholder="Opcional" /></div></div>
+          </div>
+          <div class="form-row" style="margin-bottom:10px;">
+            <div class="field"><label>Monto</label><div class="input-wrap"><input type="number" min="0" step="0.01" id="gastoMonto" placeholder="0.00" /></div></div>
+            <div class="field"><label>Método de pago</label><div class="input-wrap"><input id="gastoMetodo" placeholder="Efectivo / Transferencia / CLIP…" /></div></div>
+          </div>
+          <label class="iva-toggle" style="margin-bottom:10px;">
+            <input type="checkbox" id="gastoIvaToggle" checked />
+            El monto ya incluye IVA
+          </label>
+          <button class="btn-accent-sm" style="width:auto;" onclick="addGasto()">+ Agregar gasto</button>
+          <div id="gastosList" style="margin-top:16px; max-height:280px; overflow-y:auto;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="pagoModal" class="hidden" style="position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:200; display:flex; align-items:center; justify-content:center; padding:20px;">
+      <div class="card" style="max-width:380px; width:100%;">
+        <h1 style="font-size:17px;">Marcar cotización como pagada</h1>
+        <div class="sub" id="pagoModalSub"></div>
+        <div class="field">
+          <label>Fecha de pago</label>
+          <div class="input-wrap"><input type="date" id="pagoFecha" /></div>
+        </div>
+        <div class="field">
+          <label>Método de pago</label>
+          <div class="input-wrap"><input id="pagoMetodo" placeholder="CLIP / Transferencia / Efectivo…" /></div>
+        </div>
+        <div class="field">
+          <label>Monto recibido</label>
+          <div class="input-wrap"><input type="number" min="0" step="0.01" id="pagoMonto" /></div>
+        </div>
+        <button class="btn-primary" onclick="confirmPago()">Guardar pago</button>
+        <button class="link-btn" style="display:block; margin:14px auto 0;" onclick="closePagoModal()">Cancelar</button>
+      </div>
+    </div>
+
+    <div id="view-recibo" class="hidden">
+      <div class="topbar no-print">
+        <div><h2>Cotización generada</h2><div class="sub">Guárdala como PDF y mándala tú por WhatsApp o correo</div></div>
+        <button class="btn-accent-sm" onclick="showView('dashboard')">← Volver al Dashboard</button>
+      </div>
+
+      <div class="recibo-actions no-print">
+        <button class="btn-primary" style="max-width:220px;display:inline-block;margin-right:10px;" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+        <button class="btn-accent-sm" id="reciboWhatsBtn" style="margin-right:10px;">Abrir WhatsApp con mensaje</button>
+        <button class="btn-accent-sm" id="reciboMailBtn">Abrir correo con mensaje</button>
+        <p style="font-size:12px;color:var(--text-secondary);margin-top:14px;max-width:600px;">
+          Para mandarla con el PDF adjunto: 1) guarda el PDF con el primer botón (en la ventana de impresión, elige "Guardar como PDF"), 2) abre WhatsApp o correo con los botones de aquí arriba (ya traen el mensaje escrito), 3) adjunta ahí el PDF que guardaste en el paso 1.
+        </p>
+      </div>
+
+      <div class="recibo-card" id="reciboCard"></div>
+    </div>
+  </main>
+</div>
+
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="js/app.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  }
+</script>
+</body>
+</html>

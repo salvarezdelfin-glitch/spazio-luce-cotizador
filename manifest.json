@@ -1,0 +1,16 @@
+{
+  "name": "Spazio Luce · Sistema de Gestión",
+  "short_name": "Spazio Luce",
+  "description": "Cotizador y presupuestos de Spazio Luce",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0B0B09",
+  "theme_color": "#0B0B09",
+  "orientation": "any",
+  "lang": "es-MX",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
