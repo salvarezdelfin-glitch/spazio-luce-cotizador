@@ -1562,7 +1562,7 @@ function renderRecibopresupuesto(quote, fechaObj, fmt, contactoLine) {
       </tr>
     `).join('');
     return `
-      <div class="presupuesto-section-bar">${sec.toUpperCase()}</div>
+      <div class="presupuesto-section-bar">${sec.name.toUpperCase()}</div>
       <table>
         <thead><tr><th>#</th><th>Concepto</th><th>Un</th><th>Cant</th><th>P.U.</th><th>Importe</th></tr></thead>
         <tbody>${rows}</tbody>
@@ -1828,7 +1828,13 @@ async function presuImportPdf(file, event) {
         }
         const name = before.replace(/^\d+\s+/, '').trim();
         if (!name || name.length < 3) return;
-        const price = amounts[0];
+        // Si el renglón trae un solo monto (lo normal en presupuestos de obra:
+        // "PISO BASE ... 15 m² ... $10,200.00"), ese monto YA es el importe total
+        // de la partida, no un precio unitario — si lo tratamos como P.U. y luego
+        // se multiplica por la cantidad, se infla (15 x $10,200 en vez de $10,200).
+        // Con dos montos sí es la tabla real P.U./Importe de un catálogo.
+        const importeParsed = amounts.length >= 2 ? amounts[1] : amounts[0];
+        const price = qty > 0 ? round2(importeParsed / qty) : importeParsed;
 
         addPresuRow({ name, qty, price, unit, section: currentSection });
         imported++;
