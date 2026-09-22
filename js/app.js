@@ -1,4 +1,4 @@
-  if (window['pdfjsLib']) {
+﻿  if (window['pdfjsLib']) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   }
 let currentUser = null;
@@ -668,32 +668,13 @@ const CATALOG = {
     { name: "Motor Persiana Huna 50 2 Lienzos", price: 5278.0 },
     { name: "Control Huna 1 Multicanal (persiana)", price: 754.0 },
     { name: "Control Huna 5 Multicanal (persiana)", price: 1508.0 },
-    { name: "Persiana Enrollable Alicia", price: 954.56 },
-    { name: "Persiana Enrollable Argento", price: 855.04 },
-    { name: "Persiana Enrollable Arkansas", price: 928.93 },
-    { name: "Persiana Enrollable Belgrado", price: 895.75 },
-    { name: "Persiana Enrollable Calgary", price: 729.87 },
-    { name: "Persiana Enrollable Coraline", price: 862.58 },
-    { name: "Persiana Enrollable Giancarlo", price: 821.86 },
-    { name: "Persiana Enrollable Indiana", price: 829.4 },
-    { name: "Persiana Enrollable Kimono", price: 845.99 },
-    { name: "Persiana Enrollable Luca", price: 821.86 },
-    { name: "Persiana Enrollable Melboorne", price: 763.05 },
-    { name: "Persiana Enrollable Nizza", price: 954.56 },
-    { name: "Persiana Enrollable Orquesta", price: 779.64 },
-    { name: "Persiana Enrollable Screen", price: 845.99 },
-    { name: "Persiana Enrollable Screen Stripe", price: 962.1 },
-    { name: "Persiana Enrollable Tilde", price: 845.99 },
-    { name: "Persiana Enrollable Virgo", price: 812.81 },
-    { name: "Persiana Sheer Elegance Albatros", price: 1244.1 },
-    { name: "Persiana Sheer Elegance Barny", price: 1161.16 },
-    { name: "Persiana Sheer Elegance Bombay", price: 1609.04 },
-    { name: "Persiana Sheer Elegance Clarice", price: 1336.09 },
-    { name: "Persiana Sheer Elegance Demos", price: 1244.1 },
-    { name: "Persiana Sheer Elegance Dim Out", price: 1559.27 },
-    { name: "Persiana Sheer Elegance Fabo", price: 1393.39 },
-    { name: "Persiana Sheer Elegance Fantasy", price: 1336.09 },
-    { name: "Persiana Sheer Elegance Gardenia", price: 1244.1 },
+    // Persiana enrollable a medida: se cotiza por m² real de la ventana
+    // (ancho x alto), no a precio fijo por pieza — antes esto no servía para
+    // cotizar una medida real de cliente. 4 telas/nivel (2026-09-22):
+    { name: "Persiana Enrollable — Tela Duo Basic", pricePerM2: 379, areaBased: true },
+    { name: "Persiana Enrollable — Tela Good Line", pricePerM2: 449, areaBased: true },
+    { name: "Persiana Enrollable — Tela Celebrity", pricePerM2: 449, areaBased: true },
+    { name: "Persiana Enrollable — Tela Night", pricePerM2: 539, areaBased: true },
     { name: "Cort. Sencillo 20F111 Hélice 91-183cm Negro", price: 506.69 },
     { name: "Cort. Sencillo 20F111 Hélice 120-210cm Negro", price: 556.45 },
     { name: "Cort. Sencillo 20F111 Hélice 183-336cm Negro", price: 680.11 },
@@ -746,71 +727,6 @@ const CATALOG = {
     { name: "Cordón (kg)", price: 331.76 },
     { name: "Ganchos Alfiler (millar)", price: 348.35 },
     { name: "Rollo con 50 metros de Tarlatana", price: 265.41 },
-    { name: "Shades Workshop · Screen Soft (2.50)", price: 329.90 },
-    { name: "Shades Workshop · Screen Basic (2.50)", price: 329.90 },
-    { name: "Shades Workshop · Screen One (2.50)", price: 439.90 },
-    { name: "Shades Workshop · Screen Milán (2.50)", price: 409.90 },
-    { name: "Shades Workshop · Screen 0% (3.00)", price: 489.90 },
-    { name: "Shades Workshop · BO Galaxy (3.00)", price: 459.90 },
-    { name: "Shades Workshop · BO Luxury (3.00)", price: 439.90 },
-    { name: "Shades Workshop · BO 500 (2.50)", price: 509.90 },
-    { name: "Shades Workshop · BO Longbeach (2.50)", price: 329.90 },
-    { name: "Shades Workshop · BO Texture (2.60)", price: 419.90 },
-    { name: "Shades Workshop · BO Ipanema (2.40)", price: 389.90 },
-    { name: "Shades Workshop · BO Montreal (2.40)", price: 379.90 },
-    { name: "Shades Workshop · BO Sidney (3.00)", price: 499.90 },
-    { name: "Shades Workshop · BO Ohio (2.50)", price: 409.90 },
-    { name: "Shades Workshop · BO Budelli (2.50)", price: 429.90 },
-    { name: "Shades Workshop · Duo Basic (2.50)", price: 459.90 },
-    { name: "Shades Workshop · Duo Woodline (2.60-3.00)", price: 529.90 },
-    { name: "Shades Workshop · Duo Terra (3.00)", price: 659.90 },
-    { name: "Shades Workshop · Duo Celebrity (2.50)", price: 589.90 },
-    { name: "Shades Workshop · Duo Bright (2.85)", price: 609.90 },
-    { name: "Shades Workshop · Duo Advantage (2.80)", price: 859.90 },
-    { name: "Shades Workshop · Duo Radiance (3.00)", price: 614.90 },
-    { name: "Shades Workshop · Curvo Liso 22", price: 389.90 },
-    { name: "Shades Workshop · Curvo Rayado 22", price: 439.90 },
-    { name: "Shades Workshop · Curvo Liso 27", price: 459.90 },
-    { name: "Shades Workshop · Curvo Rayado 27", price: 479.90 },
-    { name: "Shades Workshop · Sand", price: 469.90 },
-    { name: "Shades Workshop · Strings", price: 519.90 },
-    { name: "Shades Workshop · Madera Premium", price: 619.90 },
-    { name: "Shades Workshop · Clear Edge", price: 559.90 },
-    { name: "Shades Workshop · Mini Curvo Liso", price: 489.90 },
-    { name: "Shades Workshop · Lino CX", price: 589.90 },
-    { name: "Shades Workshop · Silky Elegance", price: 614.90 },
-    { name: "Shades Workshop · Itaca (sin portatela)", price: 804.90 },
-    { name: "Shades Workshop · Itaca (con portatela)", price: 869.90 },
-    { name: "Shades Workshop · South Beach Black Out (sin portatela)", price: 639.90 },
-    { name: "Shades Workshop · South Beach Black Out (con portatela)", price: 899.90 },
-    { name: "Shades Workshop · Toronto (sin portatela)", price: 754.90 },
-    { name: "Shades Workshop · Toronto (con portatela)", price: 1014.90 },
-    { name: "Shades Workshop · Galaga (3.20)", price: 399.90 },
-    { name: "Shades Workshop · Linen (3.20)", price: 449.90 },
-    { name: "Shades Workshop · Serenade (3.30)", price: 429.90 },
-    { name: "Shades Workshop · Sundown (3.20)", price: 369.90 },
-    { name: "Shades Workshop · Vive (3.00)", price: 379.90 },
-    { name: "Shades Workshop · Chifón (3.00)", price: 299.90 },
-    { name: "Shades Workshop · Gauze (3.00)", price: 209.90 },
-    { name: "Shades Workshop · Line (3.00)", price: 219.90 },
-    { name: "Shades Workshop · Lisso FR (3.00)", price: 229.90 },
-    { name: "Shades Workshop · Tierra (3.00)", price: 299.90 },
-    { name: "Shades Workshop · Lino (3.00)", price: 339.90 },
-    { name: "Shades Workshop · BD Oxford (3.80)", price: 544.90 },
-    { name: "Shades Workshop · BD Maderas (3.80)", price: 449.90 },
-    { name: "Shades Workshop · BD Nightfall (2.80)", price: 379.90 },
-    { name: "Shades Workshop · BD Boston (2.80)", price: 479.90 },
-    { name: "Shades Workshop · BD Tulum (2.80)", price: 509.90 },
-    { name: "Shades Workshop · FL Linen (3.00)", price: 499.90 },
-    { name: "Shades Workshop · Clearview Filtro (2.80)", price: 419.90 },
-    { name: "Shades Workshop · FL Shantung (3.00)", price: 369.90 },
-    { name: "Shades Workshop · FL Dallas (3.00)", price: 379.90 },
-    { name: "Shades Workshop · FL Wheat (2.80)", price: 439.90 },
-    { name: "Shades Workshop · BO Shantung (3.00)", price: 479.90 },
-    { name: "Shades Workshop · BO Dallas (3.00)", price: 479.90 },
-    { name: "Shades Workshop · Aria Dimout (2.80)", price: 849.90 },
-    { name: "Shades Workshop · Venus Dimout (3.00)", price: 839.90 },
-    { name: "Shades Workshop · Lumiere Dimout (3.00)", price: 839.90 },
   ],
 };
 let activeCatalogTab = Object.keys(CATALOG)[0];
@@ -826,6 +742,10 @@ let useLabPrice = false;
 let ivaOn = true;
 
 function round2(n) { return Math.round(n * 100) / 100; }
+// $1,234.56 en vez de $1234.56 en todo lo que se le muestra al cliente o al
+// usuario (recibos, PDF, listas) — inputs numéricos reales y el CSV se quedan
+// sin comas aparte, para no romper su valor numérico.
+function fmtMoney(n) { return '$' + (Number(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
 function toggleLabPrice() {
   useLabPrice = !useLabPrice;
@@ -853,6 +773,9 @@ function effectiveCoveragePrices(item) {
   if (ivaOn) return { priceM2: item.priceM2, priceBox: item.priceBox };
   return { priceM2: round2(item.priceM2 / 1.16), priceBox: round2(item.priceBox / 1.16) };
 }
+function effectiveAreaPrice(item) {
+  return ivaOn ? item.pricePerM2 : round2(item.pricePerM2 / 1.16);
+}
 
 function renderCatalogTabs() {
   const tabsEl = document.getElementById('catalogTabs');
@@ -874,10 +797,12 @@ function renderCatalogItems() {
     let priceLabel;
     if (p.coverage) {
       const cov = effectiveCoveragePrices(p);
-      priceLabel = '$' + cov.priceM2.toFixed(2) + '/m² · caja cubre ' + p.coverage + ' m²';
+      priceLabel = fmtMoney(cov.priceM2) + '/m² · caja cubre ' + p.coverage + ' m²';
+    } else if (p.areaBased) {
+      priceLabel = fmtMoney(effectiveAreaPrice(p)) + '/m² · se corta a la medida exacta';
     } else {
       const eff = effectiveSimplePrice(p);
-      priceLabel = eff ? '$' + eff.toFixed(2) + (p.m2PerPza ? '/pza · cubre ' + p.m2PerPza + ' m²' : '') : 'sin precio';
+      priceLabel = eff ? fmtMoney(eff) + (p.m2PerPza ? '/pza · cubre ' + p.m2PerPza + ' m²' : '') : 'sin precio';
     }
     if (noLab) priceLabel += ' (sin LAB)';
     return `
@@ -892,9 +817,37 @@ function addFromCatalog(item) {
   if (item.coverage) {
     const cov = effectiveCoveragePrices(item);
     addCoverageRow(Object.assign({ dept: activeCatalogTab }, item, cov));
+  } else if (item.areaBased) {
+    addAreaRow(Object.assign({ dept: activeCatalogTab }, item, { pricePerM2: effectiveAreaPrice(item) }));
   } else {
     addProductRow({ name: item.name, qty: 1, price: effectiveSimplePrice(item) || '', dept: activeCatalogTab });
   }
+}
+
+// Productos a medida real (persianas): se cotiza por m² exacto (ancho x alto),
+// sin cajas ni piezas — el cliente da la medida de su ventana y ya.
+function addAreaRow(item) {
+  productRowCount++;
+  const id = 'row_' + productRowCount;
+  const wrap = document.createElement('div');
+  wrap.className = 'product-row-area';
+  wrap.id = id;
+  wrap.dataset.pricePerM2 = item.pricePerM2;
+  wrap.dataset.dept = item.dept || '';
+  wrap.innerHTML = `
+    <div class="product-row" style="grid-template-columns: 2fr .9fr .9fr 1fr auto; margin-bottom:6px;">
+      <input class="p-name" value="${item.name}" disabled />
+      <input placeholder="Ancho (m)" type="number" min="0" step="0.01" class="p-ancho" oninput="recalcTotals()" />
+      <input placeholder="Alto (m)" type="number" min="0" step="0.01" class="p-alto" oninput="recalcTotals()" />
+      <input placeholder="$0.00" class="p-import" disabled />
+      <button class="remove-row-btn" onclick="document.getElementById('${id}').remove(); recalcTotals();">✕</button>
+    </div>
+    <div class="coverage-info" style="font-size:11px;color:var(--text-secondary);padding-left:2px;">
+      ${fmtMoney(item.pricePerM2)}/m² · da el ancho y alto exactos de la ventana
+    </div>
+  `;
+  document.getElementById('productRows').appendChild(wrap);
+  recalcTotals();
 }
 
 // ======================= AGREGADO RÁPIDO (texto libre → catálogo) =======================
@@ -1033,8 +986,8 @@ function handleQuickAdd() {
   window.__quickAddParsed = parsed;
   sugBox.innerHTML = '<div class="quickadd-hint">¿Cuál de estos?</div>' + top.map((r, i) => {
     const priceLabel = r.item.coverage
-      ? '$' + r.item.priceM2.toFixed(2) + '/m² · caja cubre ' + r.item.coverage + ' m²'
-      : (r.item.price ? '$' + r.item.price.toFixed(2) : 'sin precio');
+      ? fmtMoney(r.item.priceM2) + '/m² · caja cubre ' + r.item.coverage + ' m²'
+      : (r.item.price ? fmtMoney(r.item.price) : 'sin precio');
     return `<div class="catalog-item">
       <div><span class="name">${r.item.name}</span><span class="price">${priceLabel} · ${r.dept}</span></div>
       <button onclick='addQuickMatchFromSuggestion(${i})'>+ Agregar</button>
@@ -1109,6 +1062,16 @@ function extractDocMeta(fullText) {
 
   const notaMatch = fullText.match(/NOTA:\s*(.+?)(?:\n|\s{2,}[A-ZÁÉÍÓÚÑ]{4,}|SUBTOTAL|$)/i);
   if (notaMatch) meta.nota = notaMatch[1].trim().slice(0, 300);
+
+  // Para que "subir archivo -> generar" funcione con un solo clic, se detecta
+  // también el cliente y el proyecto si el documento ya trae esos campos
+  // etiquetados (formato típico de un presupuesto Spazio Luce: CLIENTE / OBRA /
+  // DIRECCIÓN-PROYECTO / FECHA en la parte de arriba).
+  const clienteMatch = fullText.match(/CLIENTE:?\s+(.+)/i);
+  if (clienteMatch) meta.cliente = clienteMatch[1].trim().slice(0, 150);
+
+  const proyectoMatch = fullText.match(/(?:DIRECCIÓN\s*\/\s*PROYECTO|PROYECTO|DIRECCION\s*\/\s*PROYECTO):?\s+(.+)/i);
+  if (proyectoMatch) meta.proyecto = proyectoMatch[1].trim().slice(0, 200);
 
   return meta;
 }
@@ -1281,7 +1244,7 @@ function addCoverageRow(item) {
       <button class="remove-row-btn" onclick="document.getElementById('${id}').remove(); recalcTotals();">✕</button>
     </div>
     <div class="coverage-info" style="font-size:11px;color:var(--text-secondary);padding-left:2px;">
-      Cada caja cubre ${item.coverage} m² · $${Number(item.priceBox).toFixed(2)}/caja · captura largo y ancho para calcular solo, o escribe las cajas directamente
+      Cada caja cubre ${item.coverage} m² · ${fmtMoney(item.priceBox)}/caja · captura largo y ancho para calcular solo, o escribe las cajas directamente
     </div>
   `;
   document.getElementById('productRows').appendChild(wrap);
@@ -1314,11 +1277,11 @@ function recalcTotals() {
     const cajas = parseFloat(row.querySelector('.p-cajas').value) || 0;
     const m2 = largo * ancho;
     const importe = cajas * priceBox;
-    row.querySelector('.p-import').value = importe ? ('$' + importe.toFixed(2)) : '';
+    row.querySelector('.p-import').value = importe ? fmtMoney(importe) : '';
     const infoEl = row.querySelector('.coverage-info');
     infoEl.textContent = m2 > 0
-      ? `${m2.toFixed(2)} m² · ${cajas} caja(s) (cada caja cubre ${coverage} m²) · $${priceBox.toFixed(2)}/caja`
-      : `Cada caja cubre ${coverage} m² · $${priceBox.toFixed(2)}/caja · captura largo y ancho o escribe las cajas directamente`;
+      ? `${m2.toFixed(2)} m² · ${cajas} caja(s) (cada caja cubre ${coverage} m²) · ${fmtMoney(priceBox)}/caja`
+      : `Cada caja cubre ${coverage} m² · ${fmtMoney(priceBox)}/caja · captura largo y ancho o escribe las cajas directamente`;
     subtotal += importe;
   });
 
@@ -1326,7 +1289,17 @@ function recalcTotals() {
     const qty = parseFloat(row.querySelector('.p-qty').value) || 0;
     const price = parseFloat(row.querySelector('.p-price').value) || 0;
     const importe = qty * price;
-    row.querySelector('.p-import').value = importe ? ('$' + importe.toFixed(2)) : '';
+    row.querySelector('.p-import').value = importe ? fmtMoney(importe) : '';
+    subtotal += importe;
+  });
+
+  document.querySelectorAll('.product-row-area').forEach(row => {
+    const ancho = parseFloat(row.querySelector('.p-ancho').value) || 0;
+    const alto = parseFloat(row.querySelector('.p-alto').value) || 0;
+    const pricePerM2 = parseFloat(row.dataset.pricePerM2) || 0;
+    const m2 = ancho * alto;
+    const importe = round2(m2 * pricePerM2);
+    row.querySelector('.p-import').value = importe ? fmtMoney(importe) : '';
     subtotal += importe;
   });
 
@@ -1334,7 +1307,7 @@ function recalcTotals() {
   // 16% aparte para que el cliente no lo vea como un cargo extra.
   const iva = 0;
   const total = subtotal;
-  document.getElementById('totalVal').textContent = '$' + total.toFixed(2);
+  document.getElementById('totalVal').textContent = fmtMoney(total);
   return { subtotal, iva, total };
 }
 
@@ -1401,6 +1374,17 @@ async function generateQuote() {
     if (name) rows.push({ name, qty, price, importe: qty * price, dept: row.dataset.dept || null, section: row.dataset.section || '', unit: row.dataset.unit || '' });
   });
 
+  document.querySelectorAll('.product-row-area').forEach(row => {
+    const name = row.querySelector('.p-name').value.trim();
+    const ancho = parseFloat(row.querySelector('.p-ancho').value) || 0;
+    const alto = parseFloat(row.querySelector('.p-alto').value) || 0;
+    const pricePerM2 = parseFloat(row.dataset.pricePerM2) || 0;
+    const m2 = round2(ancho * alto);
+    if (name && m2 > 0) {
+      rows.push({ name, ancho, alto, m2, pricePerM2, importe: round2(m2 * pricePerM2), dept: row.dataset.dept || null });
+    }
+  });
+
   if (rows.length === 0) { showToast('Agrega al menos un producto'); return; }
   const totals = recalcTotals();
   const folio = document.getElementById('quoteFolio').value;
@@ -1460,17 +1444,18 @@ function renderReciboProductos(quote, fechaObj, fmt, contactoLine) {
 
   const rowsHtml = quote.items.map(it => {
     const isCoverage = it.cajas != null;
-    const cantLabel = isCoverage ? `${it.cajas} caja(s)` : it.qty;
-    const priceLabel = isCoverage ? it.priceBox : it.price;
-    const subLabel = isCoverage ? `${it.largo}m × ${it.ancho}m = ${it.m2} m²` : '';
+    const isArea = !isCoverage && it.m2 != null;
+    const cantLabel = isCoverage ? `${it.cajas} caja(s)` : isArea ? `${it.m2} m²` : it.qty;
+    const priceLabel = isCoverage ? it.priceBox : isArea ? it.pricePerM2 : it.price;
+    const subLabel = isCoverage ? `${it.largo}m × ${it.ancho}m = ${it.m2} m²` : isArea ? `${it.ancho}m × ${it.alto}m` : '';
     return `<tr>
       <td>
         <span class="item-name">${it.name}</span>
         ${subLabel ? `<span class="item-sub">${subLabel}</span>` : ''}
       </td>
       <td>${cantLabel}</td>
-      <td>$${Number(priceLabel).toFixed(2)}</td>
-      <td><strong>$${Number(it.importe).toFixed(2)}</strong></td>
+      <td>${fmtMoney(priceLabel)}</td>
+      <td><strong>${fmtMoney(it.importe)}</strong></td>
     </tr>`;
   }).join('');
 
@@ -1507,12 +1492,12 @@ function renderReciboProductos(quote, fechaObj, fmt, contactoLine) {
     </table>
 
     <div class="recibo-totals">
-      <div>Subtotal: $${Number(quote.subtotal).toFixed(2)}</div>
-      ${quote.iva ? `<div>IVA: $${Number(quote.iva).toFixed(2)}</div>` : ''}
+      <div>Subtotal: ${fmtMoney(quote.subtotal)}</div>
+      ${quote.iva ? `<div>IVA: ${fmtMoney(quote.iva)}</div>` : ''}
     </div>
     <div class="recibo-total-bar">
       <div>TOTAL:</div>
-      <div class="grand-amount">$${Number(quote.total).toFixed(2)}</div>
+      <div class="grand-amount">${fmtMoney(quote.total)}</div>
     </div>
 
     <div class="condiciones">
@@ -1557,8 +1542,8 @@ function renderRecibopresupuesto(quote, fechaObj, fmt, contactoLine) {
         <td>${it.name}</td>
         <td style="width:50px;">${it.unit || '—'}</td>
         <td style="width:50px;">${it.qty}</td>
-        <td style="width:90px;">$${Number(it.price).toFixed(2)}</td>
-        <td style="width:100px;"><strong>$${Number(it.importe).toFixed(2)}</strong></td>
+        <td style="width:90px;">${fmtMoney(it.price)}</td>
+        <td style="width:100px;"><strong>${fmtMoney(it.importe)}</strong></td>
       </tr>
     `).join('');
     return `
@@ -1602,11 +1587,11 @@ function renderRecibopresupuesto(quote, fechaObj, fmt, contactoLine) {
     ${quote.note ? `<div class="condiciones" style="margin-top:14px;"><b>NOTA:</b> ${quote.note}</div>` : ''}
 
     <div class="recibo-totals">
-      <div>Subtotal: $${Number(quote.subtotal).toFixed(2)}</div>
+      <div>Subtotal: ${fmtMoney(quote.subtotal)}</div>
     </div>
     <div class="recibo-total-bar">
       <div>TOTAL:</div>
-      <div class="grand-amount">$${Number(quote.total).toFixed(2)}</div>
+      <div class="grand-amount">${fmtMoney(quote.total)}</div>
     </div>
 
     <div class="condiciones">
@@ -1630,7 +1615,7 @@ function renderRecibopresupuesto(quote, fechaObj, fmt, contactoLine) {
 
 function wireReciboButtons(quote) {
   const waMsg = encodeURIComponent(
-    `Hola ${quote.client}, te comparto tu cotización ${quote.folio} de Spazio Luce por un total de $${Number(quote.total).toFixed(2)}. En un momento te mando el PDF. ¡Gracias!`
+    `Hola ${quote.client}, te comparto tu cotización ${quote.folio} de Spazio Luce por un total de ${fmtMoney(quote.total)}. En un momento te mando el PDF. ¡Gracias!`
   );
   const phoneDigits = (quote.phone || '').replace(/\D/g, '');
   document.getElementById('reciboWhatsBtn').onclick = () => {
@@ -1716,15 +1701,15 @@ function recalcPresuTotals() {
     const qty = parseFloat(row.querySelector('.ps-qty').value) || 0;
     const price = parseFloat(row.querySelector('.ps-price').value) || 0;
     const importe = qty * price;
-    row.querySelector('.ps-import').value = importe ? ('$' + importe.toFixed(2)) : '';
+    row.querySelector('.ps-import').value = importe ? fmtMoney(importe) : '';
     subtotal += importe;
   });
   const ivaOn = document.getElementById('presuIvaToggle').checked;
   const iva = ivaOn ? subtotal * 0.16 : 0;
   const total = subtotal + iva;
-  document.getElementById('presuSubtotalVal').textContent = '$' + subtotal.toFixed(2);
-  document.getElementById('presuIvaVal').textContent = ivaOn ? '$' + iva.toFixed(2) : 'No incluido';
-  document.getElementById('presuTotalVal').textContent = '$' + total.toFixed(2);
+  document.getElementById('presuSubtotalVal').textContent = fmtMoney(subtotal);
+  document.getElementById('presuIvaVal').textContent = ivaOn ? fmtMoney(iva) : 'No incluido';
+  document.getElementById('presuTotalVal').textContent = fmtMoney(total);
   return { subtotal, iva, total };
 }
 
@@ -1842,6 +1827,8 @@ async function presuImportPdf(file, event) {
     }
 
     const meta = extractDocMeta(fullTextLines.join('\n'));
+    if (meta.cliente) presuSetMetaIfEmpty('presuClient', meta.cliente);
+    if (meta.proyecto) presuSetMetaIfEmpty('presuProject', meta.proyecto);
     if (meta.folio) presuSetMetaIfEmpty('presuFolio', meta.folio);
     if (meta.fecha) presuSetFechaIfAuto(meta.fecha);
     if (meta.nota) presuSetMetaIfEmpty('presuNote', meta.nota);
@@ -1914,6 +1901,8 @@ async function presuImportDocx(file, event) {
     });
 
     const meta = extractDocMeta(doc.body.textContent || '');
+    if (meta.cliente) presuSetMetaIfEmpty('presuClient', meta.cliente);
+    if (meta.proyecto) presuSetMetaIfEmpty('presuProject', meta.proyecto);
     if (meta.folio) presuSetMetaIfEmpty('presuFolio', meta.folio);
     if (meta.fecha) presuSetFechaIfAuto(meta.fecha);
     if (meta.nota) presuSetMetaIfEmpty('presuNote', meta.nota);
@@ -2061,7 +2050,7 @@ async function refreshAll() {
     <div class="quote-row">
       <div>
         <div class="quote-client">${q.client}</div>
-        <div class="quote-meta">${q.folio} · ${q.items.length} producto(s) · $${Number(q.total).toFixed(2)}</div>
+        <div class="quote-meta">${q.folio} · ${q.items.length} producto(s) · ${fmtMoney(q.total)}</div>
       </div>
       <div class="quote-row-actions">
         ${estatusSelectHtml(q)}
@@ -2086,7 +2075,7 @@ async function refreshAll() {
       const own = cotizaciones.filter(q => q.client.toLowerCase() === c.name.toLowerCase());
       const total = own.reduce((s,q) => s + Number(q.total), 0);
       const last = own.length ? new Date(own[0].fecha).toLocaleDateString('es-MX') : '—';
-      return `<tr class="clickable-row" onclick="openClienteModal(${c.id})"><td>${c.name}</td><td>${c.telefono || '—'}</td><td>${own.length}</td><td>${last}</td><td>$${total.toFixed(2)}</td></tr>`;
+      return `<tr class="clickable-row" onclick="openClienteModal(${c.id})"><td>${c.name}</td><td>${c.telefono || '—'}</td><td>${own.length}</td><td>${last}</td><td>${fmtMoney(total)}</td></tr>`;
     }).join('');
   }
 }
@@ -2138,7 +2127,7 @@ function openClienteModal(id) {
           <div class="quote-row">
             <div>
               <div class="quote-client">${q.folio}</div>
-              <div class="quote-meta">${new Date(q.fecha).toLocaleDateString('es-MX')} · $${Number(q.total).toFixed(2)} · ${q.estatus}${q.pagado ? ' · ✓ Pagado' : ''}</div>
+              <div class="quote-meta">${new Date(q.fecha).toLocaleDateString('es-MX')} · ${fmtMoney(q.total)} · ${q.estatus}${q.pagado ? ' · ✓ Pagado' : ''}</div>
             </div>
             <div class="quote-row-actions">
               <button class="btn-ghost-sm" onclick="reprintQuote(${q.id})">Ver</button>
@@ -2188,7 +2177,7 @@ function openPagoModal(id) {
   const q = (window.__cotizaciones || []).find(c => c.id === id);
   if (!q) { showToast('No se encontró esa cotización'); return; }
   pagoTargetId = id;
-  document.getElementById('pagoModalSub').textContent = `${q.folio} · ${q.client} · Total $${Number(q.total).toFixed(2)}`;
+  document.getElementById('pagoModalSub').textContent = `${q.folio} · ${q.client} · Total ${fmtMoney(q.total)}`;
   document.getElementById('pagoFecha').value = todayForDateInput();
   document.getElementById('pagoMetodo').value = '';
   document.getElementById('pagoMonto').value = Number(q.total).toFixed(2);
@@ -2302,7 +2291,7 @@ async function refreshContabilidad() {
         <div class="quote-meta">${c.folio} · ${fmtFechaCorta(c.fecha_pago)} · ${c.metodo_pago || '—'}</div>
       </div>
       <div class="quote-row-actions">
-        <strong>$${Number(c.monto_pagado != null ? c.monto_pagado : c.total).toFixed(2)}</strong>
+        <strong>${fmtMoney(c.monto_pagado != null ? c.monto_pagado : c.total)}</strong>
       </div>
     </div>
   `).join('') : '<div class="empty-state">Sin cotizaciones pagadas este mes.</div>';
@@ -2314,7 +2303,7 @@ async function refreshContabilidad() {
         <div class="quote-meta">${fmtFechaCorta(g.fecha)} · ${g.categoria || '—'}${g.proveedor ? ' · ' + g.proveedor : ''}</div>
       </div>
       <div class="quote-row-actions">
-        <strong>$${Number(g.monto).toFixed(2)}</strong>
+        <strong>${fmtMoney(g.monto)}</strong>
         <button class="remove-row-btn" title="Eliminar gasto" onclick="deleteGasto(${g.id})">✕</button>
       </div>
     </div>

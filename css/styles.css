@@ -282,6 +282,8 @@
     .product-row .p-name { grid-column: 1 / -1; }
     .product-row-coverage .product-row { grid-template-columns: 1fr 1fr; row-gap: 6px; }
     .product-row-coverage .p-name { grid-column: 1 / -1; }
+    .product-row-area .product-row { grid-template-columns: 1fr 1fr; row-gap: 6px; }
+    .product-row-area .p-name { grid-column: 1 / -1; }
     .recibo-info { grid-template-columns: 1fr; }
   }
 
