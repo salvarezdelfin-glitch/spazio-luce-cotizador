@@ -83,6 +83,7 @@
       <button class="nav-item" data-view="cotizador" onclick="showView('cotizador')">🧾 Cotizador</button>
       <button class="nav-item" data-view="presupuestos" onclick="showView('presupuestos')">📋 Presupuestos</button>
       <button class="nav-item" data-view="contabilidad" onclick="showView('contabilidad')">💵 Contabilidad</button>
+      <button class="nav-item" data-view="reportes" onclick="showView('reportes')">📈 Reportes</button>
       <a class="nav-item" href="crm/" style="text-decoration:none;">🗂️ CRM</a>
     </nav>
     <div class="sidebar-footer">
@@ -333,6 +334,36 @@
           <button class="btn-accent-sm" style="width:auto;" onclick="addGasto()">+ Agregar gasto</button>
           <div id="gastosList" style="margin-top:16px; max-height:280px; overflow-y:auto;"></div>
         </div>
+      </div>
+    </div>
+
+    <div id="view-reportes" class="hidden">
+      <div class="topbar">
+        <div><h2>Reportes</h2><div class="sub">Qué se cotiza más, ingresos por mes y gastos por categoría</div></div>
+        <div class="input-wrap" style="padding:8px 12px; max-width:200px;">
+          <select id="reportesRango" onchange="refreshReportes()">
+            <option value="3">Últimos 3 meses</option>
+            <option value="6" selected>Últimos 6 meses</option>
+            <option value="12">Últimos 12 meses</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="panels-grid">
+        <div class="panel">
+          <h3>Ingresos por mes (cobrado)</h3>
+          <div id="reportesIngresosChart"></div>
+        </div>
+        <div class="panel">
+          <h3>Gastos por categoría</h3>
+          <div id="reportesGastosChart"></div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:18px;">
+        <h3>Productos más cotizados</h3>
+        <div class="sub" style="margin:-6px 0 14px;">Suma de todas las cotizaciones (no solo las aprobadas) — sirve para ver qué se pide más, no necesariamente qué se vendió.</div>
+        <div id="reportesTopProductos"></div>
       </div>
     </div>
 

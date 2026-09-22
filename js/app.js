@@ -216,7 +216,7 @@ async function confirmNewPassword() {
 }
 
 function showView(view) {
-  ['dashboard','clientes','cotizador','presupuestos','contabilidad','recibo'].forEach(v => {
+  ['dashboard','clientes','cotizador','presupuestos','contabilidad','reportes','recibo'].forEach(v => {
     document.getElementById('view-' + v).classList.toggle('hidden', v !== view);
   });
   document.querySelectorAll('.nav-item').forEach(el => {
@@ -225,6 +225,7 @@ function showView(view) {
   if (view === 'cotizador') prepareNewQuote();
   if (view === 'presupuestos') preparePresupuestos();
   if (view === 'contabilidad') prepareContabilidad();
+  if (view === 'reportes') refreshReportes();
 }
 
 // Catálogo real de Spazio Luce, cargado 2026-09-14 de 3 listas de precios reales:
@@ -2373,6 +2374,81 @@ function exportContabilidadCsv() {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+// Reportes: qué se cotiza más, ingresos por mes y gastos por categoría.
+// Reusa las mismas listas ya cacheadas por Contabilidad (window.__cotizaciones /
+// window.__gastos) cuando existen, para no duplicar llamadas a Supabase.
+async function refreshReportes() {
+  const meses = parseInt(document.getElementById('reportesRango').value, 10) || 6;
+  const cotizaciones = (window.__cotizaciones && window.__cotizaciones.length) ? window.__cotizaciones : await sbSelect('cotizaciones', 'id.desc');
+  window.__cotizaciones = cotizaciones;
+  const gastos = (window.__gastos && window.__gastos.length) ? window.__gastos : await sbSelect('gastos', 'fecha.desc');
+  window.__gastos = gastos;
+
+  const hoy = new Date();
+  const mesesRango = [];
+  for (let i = meses - 1; i >= 0; i--) {
+    const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
+    mesesRango.push({ y: d.getFullYear(), m: d.getMonth() + 1, label: d.toLocaleDateString('es-MX', { month: 'short', year: '2-digit' }) });
+  }
+
+  // --- Ingresos por mes (cobrado) ---
+  const ingresosPorMes = mesesRango.map(({ y, m, label }) => {
+    const total = cotizaciones
+      .filter(c => c.pagado && enMes(c.fecha_pago, y, m))
+      .reduce((s, c) => s + Number(c.monto_pagado != null ? c.monto_pagado : c.total || 0), 0);
+    return { label, total: round2(total) };
+  });
+  const maxIngreso = Math.max(1, ...ingresosPorMes.map(x => x.total));
+  document.getElementById('reportesIngresosChart').innerHTML = ingresosPorMes.map(x => `
+    <div class="bar-row">
+      <div class="bar-row-top"><span class="bar-label">${x.label}</span><span class="bar-value">$${x.total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(x.total / maxIngreso * 100).toFixed(1)}%"></div></div>
+    </div>
+  `).join('') || '<div class="empty-state">Sin datos todavía.</div>';
+
+  // --- Gastos por categoría (dentro del rango de meses elegido) ---
+  const inicioRango = new Date(mesesRango[0].y, mesesRango[0].m - 1, 1);
+  const gastosRango = gastos.filter(g => new Date(g.fecha) >= inicioRango);
+  const porCategoria = {};
+  gastosRango.forEach(g => {
+    const cat = g.categoria && g.categoria.trim() ? g.categoria.trim() : 'Sin categoría';
+    porCategoria[cat] = (porCategoria[cat] || 0) + (Number(g.monto) || 0);
+  });
+  const categorias = Object.entries(porCategoria).map(([cat, total]) => ({ cat, total: round2(total) })).sort((a, b) => b.total - a.total);
+  const maxGasto = Math.max(1, ...categorias.map(x => x.total));
+  document.getElementById('reportesGastosChart').innerHTML = categorias.length ? categorias.map(x => `
+    <div class="bar-row">
+      <div class="bar-row-top"><span class="bar-label">${x.cat}</span><span class="bar-value">$${x.total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(x.total / maxGasto * 100).toFixed(1)}%"></div></div>
+    </div>
+  `).join('') : '<div class="empty-state">Sin gastos registrados en este rango.</div>';
+
+  // --- Productos más cotizados (todas las cotizaciones no rechazadas, del rango elegido) ---
+  const cotsRango = cotizaciones.filter(c => c.estatus !== 'Rechazada' && new Date(c.fecha) >= inicioRango);
+  const porProducto = {};
+  cotsRango.forEach(c => {
+    (Array.isArray(c.items) ? c.items : []).forEach(it => {
+      const nombre = it.name || 'Sin nombre';
+      const importe = Number(it.importe) || 0;
+      const cantidad = it.cajas != null ? Number(it.cajas) : Number(it.qty) || 0;
+      if (!porProducto[nombre]) porProducto[nombre] = { cantidad: 0, importe: 0 };
+      porProducto[nombre].cantidad += cantidad;
+      porProducto[nombre].importe += importe;
+    });
+  });
+  const topProductos = Object.entries(porProducto)
+    .map(([name, v]) => ({ name, cantidad: v.cantidad, importe: round2(v.importe) }))
+    .sort((a, b) => b.importe - a.importe)
+    .slice(0, 15);
+  const maxImporte = Math.max(1, ...topProductos.map(x => x.importe));
+  document.getElementById('reportesTopProductos').innerHTML = topProductos.length ? topProductos.map(x => `
+    <div class="bar-row">
+      <div class="bar-row-top"><span class="bar-label">${x.name} <span style="color:var(--text-secondary);">(${x.cantidad})</span></span><span class="bar-value">$${x.importe.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(x.importe / maxImporte * 100).toFixed(1)}%"></div></div>
+    </div>
+  `).join('') : '<div class="empty-state">Todavía no hay cotizaciones en este rango.</div>';
 }
 
 function showResetPasswordBox() {

@@ -56,7 +56,16 @@
     background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
     padding: 10px 14px;
   }
-  .input-wrap input, .input-wrap textarea { background: transparent; border: none; outline: none; color: var(--text); font-size: 14px; width: 100%; font-family: inherit; }
+  .input-wrap input, .input-wrap textarea, .input-wrap select { background: transparent; border: none; outline: none; color: var(--text); font-size: 14px; width: 100%; font-family: inherit; }
+  .input-wrap select option { background: var(--panel); color: var(--text); }
+
+  .bar-row { margin-bottom: 14px; }
+  .bar-row:last-child { margin-bottom: 0; }
+  .bar-row-top { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+  .bar-row-top .bar-label { color: var(--text); }
+  .bar-row-top .bar-value { color: var(--text-secondary); font-weight: 600; }
+  .bar-track { background: var(--panel-alt); border-radius: 999px; height: 10px; overflow: hidden; }
+  .bar-fill { background: var(--accent); height: 100%; border-radius: 999px; }
   .btn-primary {
     width: 100%; background: var(--accent); color: #0B0B09; font-weight: 700;
     border-radius: 10px; padding: 12px; font-size: 14px; margin-top: 6px;
@@ -248,17 +257,21 @@
   @media (max-width: 880px) {
     input, select, textarea { font-size: 16px; }
     #app { flex-direction: column; min-height: auto; }
+    /* Antes esto era una sola fila que se deslizaba horizontalmente sin
+       ninguna señal visual — en la práctica, pestañas como Reportes o CRM
+       quedaban escondidas y nadie se enteraba que había que deslizar el
+       dedo. Ahora todo se acomoda en varias filas y se ve completo. */
     aside {
-      width: 100%; flex-direction: row; align-items: center;
+      width: 100%; flex-direction: column; align-items: stretch;
       padding: 10px 14px; border-right: none; border-bottom: 1px solid var(--border);
-      gap: 10px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+      gap: 10px;
     }
-    .sidebar-logo { margin-bottom: 0; padding: 6px 10px; flex-shrink: 0; }
+    .sidebar-logo { margin-bottom: 0; padding: 6px 10px; }
     .sidebar-logo img { max-height: 26px; }
     .nav-section-title { display: none; }
-    nav { flex-direction: row; gap: 4px; flex-shrink: 0; }
+    nav { flex-direction: row; flex-wrap: wrap; gap: 6px; }
     .nav-item { white-space: nowrap; }
-    .sidebar-footer { margin-top: 0; padding-top: 0; border-top: none; margin-left: auto; flex-shrink: 0; }
+    .sidebar-footer { margin-top: 0; padding-top: 10px; border-top: 1px solid var(--border); }
     main { padding: 16px; }
     .card { padding: 22px; }
   }
