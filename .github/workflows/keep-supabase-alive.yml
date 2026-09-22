@@ -1,0 +1,22 @@
+name: Keep Supabase alive
+
+on:
+  schedule:
+    - cron: '0 12 */3 * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST API
+        run: |
+          status=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/clientes?select=id&limit=1" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}")
+          echo "Supabase respondió HTTP $status"
+          if [ "$status" -ge 500 ] || [ "$status" -eq 000 ]; then
+            echo "::error::Supabase no respondió correctamente (HTTP $status)"
+            exit 1
+          fi
