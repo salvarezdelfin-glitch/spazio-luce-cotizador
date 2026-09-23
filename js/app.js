@@ -1733,28 +1733,67 @@ async function presuImportExcel(file, event) {
     const buffer = await file.arrayBuffer();
     const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
     const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+    // Un presupuesto real casi siempre trae 2-4 filas de titulo arriba (nombre
+    // del negocio, cliente, fecha) antes de la fila real de encabezados
+    // (Concepto/Un/Cantidad/P.U./Importe) -- asumir que la fila 1 SIEMPRE es
+    // el encabezado (como hacia antes) dejaba esas columnas sin detectar.
+    // Aqui se busca la fila que de verdad tiene cara de encabezado.
+    const raw = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', blankrows: false });
+    let headerRowIdx = raw.findIndex(row =>
+      row.some(c => { const k = norm(c); return k.includes('concepto') || k.includes('descripcion'); }) &&
+      row.some(c => { const k = norm(c); return k.includes('cant') || k.includes('precio') || k.includes('importe') || k.includes('p.u'); })
+    );
+    if (headerRowIdx === -1) headerRowIdx = 0; // no se encontro: mejor esfuerzo, como antes
+
+    const headerRow = raw[headerRowIdx].map(norm);
+    const col = {
+      name: headerRow.findIndex(k => k.includes('concepto') || k.includes('producto') || k.includes('nombre') || k.includes('descripcion')),
+      qty: headerRow.findIndex(k => k.includes('cant')),
+      price: headerRow.findIndex(k => k.includes('precio') || k.includes('p.u')),
+      importe: headerRow.findIndex(k => k.includes('importe') || k === 'total'),
+      unit: headerRow.findIndex(k => k.replace(/\./g, '') === 'un' || k.includes('unidad')),
+      section: headerRow.findIndex(k => k.includes('seccion') || k.includes('categoria') || k.includes('partida') || k.replace(/\./g, '') === 'part'),
+      folio: headerRow.findIndex(k => k.includes('folio')),
+    };
 
     let imported = 0;
     let folioFound = '';
-    rows.forEach(row => {
-      let name = '', qty = '', price = '', section = '', unit = '', folio = '';
-      Object.keys(row).forEach(key => {
-        const k = norm(key);
-        if (k.includes('concepto') || k.includes('producto') || k.includes('nombre') || k.includes('descripcion')) name = row[key];
-        else if (k.includes('cant')) qty = row[key];
-        else if (k.includes('precio') || k.includes('p.u')) price = row[key];
-        else if (k.includes('seccion') || k.includes('categoria') || k.includes('partida')) section = row[key];
-        else if (k === 'un' || k.includes('unidad')) unit = row[key];
-        else if (k.includes('folio')) folio = row[key];
-      });
-      if (folio && !folioFound) folioFound = String(folio).trim();
-      name = String(name || '').trim();
-      if (!name) return;
-      addPresuRow({ name, qty: parseFloat(qty) || 1, price: parseFloat(String(price).replace(/[^0-9.]/g,'')) || 0, section: String(section||'').trim(), unit: String(unit||'').trim() });
+    let currentSection = '';
+    for (let i = headerRowIdx + 1; i < raw.length; i++) {
+      const r = raw[i];
+      const nonEmpty = r.filter(c => String(c).trim() !== '');
+      if (nonEmpty.length === 0) continue;
+
+      const nameCell = col.name >= 0 ? String(r[col.name] || '').trim() : '';
+
+      // La fila de SUMA/TOTAL del propio documento no es un concepto.
+      if (nonEmpty.some(c => /^(SUMA|SUB\s*-?\s*TOTAL|GRAN\s*TOTAL|TOTAL)$/i.test(String(c).trim()))) continue;
+
+      // Una fila con una sola celda de texto y sin numeros es un encabezado de
+      // seccion (ej. "INSTALACION"), no un concepto -- se guarda para las
+      // filas que le siguen.
+      const hasNumberOrPrice = nonEmpty.some(c => typeof c === 'number' || /\d/.test(String(c)));
+      if (nonEmpty.length === 1 && !hasNumberOrPrice) { currentSection = String(nonEmpty[0]).trim(); continue; }
+
+      if (!nameCell) continue;
+      const qty = col.qty >= 0 ? (parseFloat(r[col.qty]) || 1) : 1;
+      let price = col.price >= 0 ? (parseFloat(String(r[col.price]).replace(/[^0-9.\-]/g, '')) || 0) : 0;
+      // Si no hay columna de P.U. pero si de Importe, ese monto es el total de
+      // la fila, no el precio unitario -- se calcula el unitario en reversa
+      // para no inflarlo al multiplicar por la cantidad (mismo caso que el PDF).
+      if (col.price < 0 && col.importe >= 0) {
+        const importeNum = parseFloat(String(r[col.importe]).replace(/[^0-9.\-]/g, '')) || 0;
+        price = qty > 0 ? round2(importeNum / qty) : importeNum;
+      }
+      const unit = col.unit >= 0 ? String(r[col.unit] || '').trim() : '';
+      const section = col.section >= 0 ? String(r[col.section] || '').trim() : currentSection;
+      if (col.folio >= 0 && !folioFound && r[col.folio]) folioFound = String(r[col.folio]).trim();
+
+      addPresuRow({ name: nameCell, qty, price, section, unit });
       imported++;
-    });
+    }
     if (folioFound) presuSetMetaIfEmpty('presuFolio', folioFound);
     showToast(imported > 0 ? `${imported} renglón(es) importados` : 'No se encontraron filas válidas');
   } catch (err) {
