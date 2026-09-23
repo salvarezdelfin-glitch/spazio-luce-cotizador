@@ -1027,7 +1027,7 @@ function addImportedRow(item) {
 // (ej. "... PZA 3 $150.50"). Antes se adivinaba por longitud de palabra (<=4
 // letras), lo que se comía nombres cortos de producto ("Test", "LED") como si
 // fueran unidad. Con lista fija solo se separa cuando de verdad es una unidad.
-const KNOWN_UNITS = ['pza', 'pzas', 'pz', 'ml', 'm2', 'm²', 'kg', 'hr', 'hrs', 'lote', 'jgo', 'par', 'serv', 'un', 'und', 'glb', 'caja', 'cajas', 'rollo', 'mt', 'mts'];
+const KNOWN_UNITS = ['pza', 'pzas', 'pz', 'ml', 'm2', 'm²', 'kg', 'hr', 'hrs', 'lote', 'lte', 'jgo', 'par', 'serv', 'un', 'und', 'glb', 'caja', 'cajas', 'rollo', 'mt', 'mts', 'sal'];
 
 // Encabezado de sección dentro de un PDF/Word: antes solo se reconocía si la línea
 // estaba TODO EN MAYÚSCULAS, pero la mayoría de los presupuestos reales usan
@@ -1771,6 +1771,7 @@ async function presuImportPdf(file, event) {
     const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
     let imported = 0;
     let currentSection = '';
+    let pendingText = '';
     const fullTextLines = [];
 
     for (let p = 1; p <= pdf.numPages; p++) {
@@ -1780,6 +1781,7 @@ async function presuImportPdf(file, event) {
         text: it.str, x: it.transform[4], y: Math.round(it.transform[5] / 3) * 3,
       })).filter(it => it.text.trim());
 
+      pendingText = '';
       const rowsByY = {};
       items.forEach(it => { (rowsByY[it.y] = rowsByY[it.y] || []).push(it); });
       const sortedYs = Object.keys(rowsByY).map(Number).sort((a, b) => b - a);
@@ -1792,11 +1794,31 @@ async function presuImportPdf(file, event) {
 
         if (looksLikeSectionHeader(lineText)) {
           currentSection = lineText;
+          pendingText = '';
+          return;
+        }
+
+        // La fila de SUMA/TOTAL del propio documento no es un concepto — es el
+        // total que ya vamos a recalcular solos. Si se importa como renglón,
+        // duplica el importe real.
+        if (/^\s*(SUMA|SUB\s*-?\s*TOTAL|GRAN\s*TOTAL|TOTAL)\b/i.test(lineText)) {
+          pendingText = '';
           return;
         }
 
         const moneyMatches = [...lineText.matchAll(/\$\s*([\d,]+\.\d{2})/g)];
-        if (moneyMatches.length === 0) return;
+        if (moneyMatches.length === 0) {
+          // El número de fila (" 2", " 3"...) a veces cae en su propio renglón,
+          // separado del texto — si se acumula tal cual, queda embarrado a la
+          // mitad del nombre. No aporta nada, se ignora.
+          if (/^\d+$/.test(lineText)) return;
+          // Sin precio: en un Excel exportado a PDF, un concepto largo suele
+          // envolver en 2-3 líneas y solo la última trae UN/CANT/P.U./IMPORTE —
+          // esta línea probablemente es el inicio real del concepto, se guarda
+          // para pegarla a la siguiente línea que sí traiga precio.
+          pendingText = (pendingText + ' ' + lineText).trim().slice(-300);
+          return;
+        }
         const amounts = moneyMatches.map(m => parseFloat(m[1].replace(/,/g, '')));
         const firstMoneyIdx = lineText.indexOf(moneyMatches[0][0]);
         let before = lineText.slice(0, firstMoneyIdx).trim();
@@ -1811,7 +1833,8 @@ async function presuImportPdf(file, event) {
           const qtyOnlyMatch = before.match(/(\d+(?:\.\d+)?)\s*$/);
           if (qtyOnlyMatch) { qty = parseFloat(qtyOnlyMatch[1]); before = before.slice(0, qtyOnlyMatch.index).trim(); }
         }
-        const name = before.replace(/^\d+\s+/, '').trim();
+        const name = (pendingText + ' ' + before).replace(/^\d+\s+/, '').trim();
+        pendingText = '';
         if (!name || name.length < 3) return;
         // Si el renglón trae un solo monto (lo normal en presupuestos de obra:
         // "PISO BASE ... 15 m² ... $10,200.00"), ese monto YA es el importe total
