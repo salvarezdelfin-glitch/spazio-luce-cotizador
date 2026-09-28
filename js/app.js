@@ -961,11 +961,12 @@ function addAreaRow(item) {
   wrap.dataset.dept = item.dept || '';
   const installTxt = item.installFee ? ' + ' + fmtMoney(item.installFee) + ' de instalación' : '';
   wrap.innerHTML = `
-    <div class="product-row" style="grid-template-columns: 2fr .9fr .9fr 1fr auto; margin-bottom:6px;">
+    <div class="product-row" style="grid-template-columns: 2fr .9fr .9fr 1fr auto auto; margin-bottom:6px;">
       <input class="p-name" value="${item.name}" disabled />
       <input placeholder="Ancho (m)" type="number" min="0" step="0.01" class="p-ancho" oninput="recalcTotals()" />
       <input placeholder="Alto (m)" type="number" min="0" step="0.01" class="p-alto" oninput="recalcTotals()" />
       <input placeholder="$0.00" class="p-import" disabled />
+      <button class="row-photo-btn" title="Pegar o subir foto de este producto" onclick="pickProductoFoto('${item.name.replace(/'/g, "\\'")}')">📷</button>
       <button class="remove-row-btn" onclick="document.getElementById('${id}').remove(); recalcTotals();">✕</button>
     </div>
     <div class="coverage-info" style="font-size:11px;color:var(--text-secondary);padding-left:2px;">
@@ -1343,6 +1344,7 @@ function addProductRow(prefill) {
     <input placeholder="1" type="number" min="0" class="p-qty" value="${prefill ? prefill.qty : 1}" oninput="recalcTotals()" />
     <input placeholder="0.00" type="number" min="0" class="p-price" value="${prefill ? prefill.price : ''}" oninput="recalcTotals()" />
     <input placeholder="$0.00" class="p-import" disabled />
+    <button class="row-photo-btn" title="Pegar o subir foto de este producto" onclick="pickProductoFoto(document.getElementById('${id}').querySelector('.p-name').value.trim())">📷</button>
     <button class="remove-row-btn" onclick="document.getElementById('${id}').remove(); recalcTotals();">✕</button>
   `;
   document.getElementById('productRows').appendChild(wrap);
@@ -1363,12 +1365,13 @@ function addCoverageRow(item) {
   wrap.dataset.priceM2 = item.priceM2;
   wrap.dataset.dept = item.dept || '';
   wrap.innerHTML = `
-    <div class="product-row" style="grid-template-columns: 2fr .9fr .9fr .9fr 1fr auto; margin-bottom:6px;">
+    <div class="product-row" style="grid-template-columns: 2fr .9fr .9fr .9fr 1fr auto auto; margin-bottom:6px;">
       <input class="p-name" value="${item.name}" disabled />
       <input placeholder="Largo (m)" type="number" min="0" step="0.01" class="p-largo" oninput="onLargoAnchoChange('${id}')" />
       <input placeholder="Ancho (m)" type="number" min="0" step="0.01" class="p-ancho" oninput="onLargoAnchoChange('${id}')" />
       <input placeholder="Cajas" type="number" min="0" step="1" class="p-cajas" oninput="recalcTotals()" />
       <input placeholder="$0.00" class="p-import" disabled />
+      <button class="row-photo-btn" title="Pegar o subir foto de este producto" onclick="pickProductoFoto('${item.name.replace(/'/g, "\\'")}')">📷</button>
       <button class="remove-row-btn" onclick="document.getElementById('${id}').remove(); recalcTotals();">✕</button>
     </div>
     <div class="coverage-info" style="font-size:11px;color:var(--text-secondary);padding-left:2px;">
