@@ -1534,6 +1534,8 @@ function renderReciboProductos(quote, fechaObj, fmt, contactoLine) {
       <div class="grand-amount">${fmtMoney(quote.total)}</div>
     </div>
 
+    ${quote.note ? `<div class="condiciones" style="margin-top:14px;"><b>NOTA:</b> ${quote.note}</div>` : ''}
+
     <div class="condiciones">
       * Precios preferenciales de Spazio Luce sobre catálogo general.<br/>
       * Precios sujetos a cambio sin previo aviso. Cotización válida por 15 días naturales.<br/>
