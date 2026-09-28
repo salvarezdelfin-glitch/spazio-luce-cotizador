@@ -671,10 +671,12 @@ const CATALOG = {
     // Persiana enrollable a medida: se cotiza por m² real de la ventana
     // (ancho x alto), no a precio fijo por pieza — antes esto no servía para
     // cotizar una medida real de cliente. 4 telas/nivel (2026-09-22):
-    { name: "Persiana Enrollable — Tela Duo Basic", pricePerM2: 379, areaBased: true },
-    { name: "Persiana Enrollable — Tela Good Line", pricePerM2: 449, areaBased: true },
-    { name: "Persiana Enrollable — Tela Celebrity", pricePerM2: 449, areaBased: true },
-    { name: "Persiana Enrollable — Tela Night", pricePerM2: 539, areaBased: true },
+    // Precio por m2 con el +40% de margen ya incluido, mas $250 fijos de
+    // instalacion por persiana (no por m2) -- confirmado 2026-09-24.
+    { name: "Persiana Enrollable — Tela Duo Basic", pricePerM2: 530.60, installFee: 250, areaBased: true },
+    { name: "Persiana Enrollable — Tela Good Line", pricePerM2: 628.60, installFee: 250, areaBased: true },
+    { name: "Persiana Enrollable — Tela Celebrity", pricePerM2: 628.60, installFee: 250, areaBased: true },
+    { name: "Persiana Enrollable — Tela Night", pricePerM2: 754.60, installFee: 250, areaBased: true },
     { name: "Cort. Sencillo 20F111 Hélice 91-183cm Negro", price: 506.69 },
     { name: "Cort. Sencillo 20F111 Hélice 120-210cm Negro", price: 556.45 },
     { name: "Cort. Sencillo 20F111 Hélice 183-336cm Negro", price: 680.11 },
@@ -776,6 +778,10 @@ function effectiveCoveragePrices(item) {
 function effectiveAreaPrice(item) {
   return ivaOn ? item.pricePerM2 : round2(item.pricePerM2 / 1.16);
 }
+function effectiveInstallFee(item) {
+  if (!item.installFee) return 0;
+  return ivaOn ? item.installFee : round2(item.installFee / 1.16);
+}
 
 function renderCatalogTabs() {
   const tabsEl = document.getElementById('catalogTabs');
@@ -799,7 +805,7 @@ function renderCatalogItems() {
       const cov = effectiveCoveragePrices(p);
       priceLabel = fmtMoney(cov.priceM2) + '/m² · caja cubre ' + p.coverage + ' m²';
     } else if (p.areaBased) {
-      priceLabel = fmtMoney(effectiveAreaPrice(p)) + '/m² · se corta a la medida exacta';
+      priceLabel = fmtMoney(effectiveAreaPrice(p)) + '/m²' + (p.installFee ? ' + ' + fmtMoney(effectiveInstallFee(p)) + ' instalación' : '') + ' · se corta a la medida exacta';
     } else {
       const eff = effectiveSimplePrice(p);
       priceLabel = eff ? fmtMoney(eff) + (p.m2PerPza ? '/pza · cubre ' + p.m2PerPza + ' m²' : '') : 'sin precio';
@@ -818,7 +824,7 @@ function addFromCatalog(item) {
     const cov = effectiveCoveragePrices(item);
     addCoverageRow(Object.assign({ dept: activeCatalogTab }, item, cov));
   } else if (item.areaBased) {
-    addAreaRow(Object.assign({ dept: activeCatalogTab }, item, { pricePerM2: effectiveAreaPrice(item) }));
+    addAreaRow(Object.assign({ dept: activeCatalogTab }, item, { pricePerM2: effectiveAreaPrice(item), installFee: effectiveInstallFee(item) }));
   } else {
     addProductRow({ name: item.name, qty: 1, price: effectiveSimplePrice(item) || '', dept: activeCatalogTab });
   }
@@ -833,7 +839,9 @@ function addAreaRow(item) {
   wrap.className = 'product-row-area';
   wrap.id = id;
   wrap.dataset.pricePerM2 = item.pricePerM2;
+  wrap.dataset.installFee = item.installFee || 0;
   wrap.dataset.dept = item.dept || '';
+  const installTxt = item.installFee ? ' + ' + fmtMoney(item.installFee) + ' de instalación' : '';
   wrap.innerHTML = `
     <div class="product-row" style="grid-template-columns: 2fr .9fr .9fr 1fr auto; margin-bottom:6px;">
       <input class="p-name" value="${item.name}" disabled />
@@ -843,7 +851,7 @@ function addAreaRow(item) {
       <button class="remove-row-btn" onclick="document.getElementById('${id}').remove(); recalcTotals();">✕</button>
     </div>
     <div class="coverage-info" style="font-size:11px;color:var(--text-secondary);padding-left:2px;">
-      ${fmtMoney(item.pricePerM2)}/m² · da el ancho y alto exactos de la ventana
+      ${fmtMoney(item.pricePerM2)}/m²${installTxt} · da el ancho y alto exactos de la ventana
     </div>
   `;
   document.getElementById('productRows').appendChild(wrap);
@@ -1297,8 +1305,11 @@ function recalcTotals() {
     const ancho = parseFloat(row.querySelector('.p-ancho').value) || 0;
     const alto = parseFloat(row.querySelector('.p-alto').value) || 0;
     const pricePerM2 = parseFloat(row.dataset.pricePerM2) || 0;
+    const installFee = parseFloat(row.dataset.installFee) || 0;
     const m2 = ancho * alto;
-    const importe = round2(m2 * pricePerM2);
+    // La instalación es un cargo fijo por persiana, no por m² — solo se cobra
+    // una vez que de verdad hay una medida capturada, no en una fila vacía.
+    const importe = m2 > 0 ? round2(m2 * pricePerM2 + installFee) : 0;
     row.querySelector('.p-import').value = importe ? fmtMoney(importe) : '';
     subtotal += importe;
   });
@@ -1379,9 +1390,10 @@ async function generateQuote() {
     const ancho = parseFloat(row.querySelector('.p-ancho').value) || 0;
     const alto = parseFloat(row.querySelector('.p-alto').value) || 0;
     const pricePerM2 = parseFloat(row.dataset.pricePerM2) || 0;
+    const installFee = parseFloat(row.dataset.installFee) || 0;
     const m2 = round2(ancho * alto);
     if (name && m2 > 0) {
-      rows.push({ name, ancho, alto, m2, pricePerM2, importe: round2(m2 * pricePerM2), dept: row.dataset.dept || null });
+      rows.push({ name, ancho, alto, m2, pricePerM2, installFee, importe: round2(m2 * pricePerM2 + installFee), dept: row.dataset.dept || null });
     }
   });
 
@@ -1447,7 +1459,7 @@ function renderReciboProductos(quote, fechaObj, fmt, contactoLine) {
     const isArea = !isCoverage && it.m2 != null;
     const cantLabel = isCoverage ? `${it.cajas} caja(s)` : isArea ? `${it.m2} m²` : it.qty;
     const priceLabel = isCoverage ? it.priceBox : isArea ? it.pricePerM2 : it.price;
-    const subLabel = isCoverage ? `${it.largo}m × ${it.ancho}m = ${it.m2} m²` : isArea ? `${it.ancho}m × ${it.alto}m` : '';
+    const subLabel = isCoverage ? `${it.largo}m × ${it.ancho}m = ${it.m2} m²` : isArea ? `${it.ancho}m × ${it.alto}m${it.installFee ? ' + ' + fmtMoney(it.installFee) + ' instalación' : ''}` : '';
     return `<tr>
       <td>
         <span class="item-name">${it.name}</span>
