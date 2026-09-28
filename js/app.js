@@ -130,9 +130,29 @@ async function uploadProductoFoto(productName, file) {
   }
 }
 
-// El <input type=file> real es uno solo y se reusa para cualquier producto —
-// se guarda para cuál fue en data-target antes de abrirlo.
-function pickProductoFoto(productName) {
+// Un solo botón cubre las dos formas de poner la foto: si ya copiaste una
+// imagen (ej. una captura de pantalla con Win+Shift+S, o "Copiar imagen" desde
+// el navegador), la pega directo del portapapeles sin abrir nada. Si no hay
+// nada copiado, o el navegador no deja leer el portapapeles, cae solo al
+// explorador de archivos normal (para subir un PNG/JPG ya descargado).
+async function pickProductoFoto(productName) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.read) {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const imgType = item.types.find(t => t.startsWith('image/'));
+        if (imgType) {
+          const blob = await item.getType(imgType);
+          const file = new File([blob], 'pegado.' + imgType.split('/')[1], { type: imgType });
+          await saveProductoFotoFile(productName, file);
+          return;
+        }
+      }
+    }
+  } catch (e) {
+    // Sin permiso de portapapeles o nada copiado — se sigue al selector de
+    // archivo normal, sin molestar con un error.
+  }
   const input = document.getElementById('productoFotoInput');
   input.dataset.target = productName;
   input.value = '';
@@ -143,6 +163,10 @@ async function onProductoFotoSelected(event) {
   const file = event.target.files[0];
   const productName = event.target.dataset.target;
   if (!file || !productName) return;
+  await saveProductoFotoFile(productName, file);
+}
+
+async function saveProductoFotoFile(productName, file) {
   showToast('Subiendo foto…');
   const url = await uploadProductoFoto(productName, file);
   if (url) {
@@ -902,8 +926,8 @@ function renderCatalogItems() {
     if (noLab) priceLabel += ' (sin LAB)';
     const fotoUrl = productoFotos[p.name];
     const fotoBtn = fotoUrl
-      ? `<button class="catalog-photo-thumb" title="Cambiar foto" onclick="pickProductoFoto('${p.name.replace(/'/g, "\\'")}')"><img src="${fotoUrl}" alt="" /></button>`
-      : `<button class="catalog-photo-btn" title="Agregar foto" onclick="pickProductoFoto('${p.name.replace(/'/g, "\\'")}')">📷</button>`;
+      ? `<button class="catalog-photo-thumb" title="Cambiar foto: pega una imagen copiada o elige un archivo" onclick="pickProductoFoto('${p.name.replace(/'/g, "\\'")}')"><img src="${fotoUrl}" alt="" /></button>`
+      : `<button class="catalog-photo-btn" title="Agregar foto: pega una imagen copiada o elige un archivo" onclick="pickProductoFoto('${p.name.replace(/'/g, "\\'")}')">📷</button>`;
     return `
     <div class="catalog-item">
       ${fotoBtn}
