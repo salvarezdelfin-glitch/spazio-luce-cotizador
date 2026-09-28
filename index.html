@@ -229,7 +229,10 @@
           <div class="grand">Total: <span id="totalVal">$0.00</span></div>
         </div>
       </div>
-      <button class="btn-primary" style="max-width:260px" onclick="generateQuote()">📄 Generar Cotización</button>
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <button class="btn-primary" id="quoteGenerateBtn" style="max-width:260px" onclick="generateQuote()">📄 Generar Cotización</button>
+        <button class="link-btn hidden" id="quoteCancelEditBtn" onclick="cancelEditQuote()">Cancelar edición</button>
+      </div>
     </div>
 
     <div id="view-presupuestos" class="hidden">
@@ -294,7 +297,10 @@
           <div class="grand">Total: <span id="presuTotalVal">$0.00</span></div>
         </div>
       </div>
-      <button class="btn-primary" style="max-width:320px" onclick="generatePresupuesto()">📄 Generar Presupuesto Spazio Luce</button>
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <button class="btn-primary" id="presuGenerateBtn" style="max-width:320px" onclick="generatePresupuesto()">📄 Generar Presupuesto Spazio Luce</button>
+        <button class="link-btn hidden" id="presuCancelEditBtn" onclick="cancelEditQuote()">Cancelar edición</button>
+      </div>
     </div>
 
     <div id="view-contabilidad" class="hidden">

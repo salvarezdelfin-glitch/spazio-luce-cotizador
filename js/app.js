@@ -3,6 +3,9 @@
   }
 let currentUser = null;
 let productRowCount = 0;
+// Cuando no es null, "Generar" actualiza esta cotización existente (misma fila
+// en Supabase) en vez de crear una nueva — ver editQuote()/cancelEditQuote().
+let editingQuoteId = null;
 const reciboLogoUri = "assets/logo.jpg";
 
 // Conexión a Supabase: cotizaciones y clientes se guardan aquí, compartidos
@@ -1412,15 +1415,34 @@ async function generateQuote() {
     subtotal: totals.subtotal,
     iva: totals.iva,
     total: totals.total,
-    estatus: 'Enviada',
     iva_incluido: ivaOn,
-    generado_por: currentUser.email,
   };
-  let inserted = await sbInsert('cotizaciones', quote);
-  if (!inserted && quote.note) {
+
+  if (editingQuoteId) {
+    // Al editar NO se toca estatus/pagado/generado_por — si ya estaba Aprobada
+    // y pagada, corregir un producto no debe regresarla a "Enviada" ni borrar
+    // quién la hizo originalmente.
+    const ok = await sbUpdate('cotizaciones', editingQuoteId, quote);
+    if (!ok) { showToast('No se pudo guardar el cambio, revisa tu conexión'); return; }
+    await upsertClienteContacto(client, quote.phone, quote.email, quote.address);
+    showToast('Cotización ' + folio + ' actualizada');
+    const editedId = editingQuoteId;
+    editingQuoteId = null;
+    document.getElementById('quoteGenerateBtn').textContent = '📄 Generar Cotización';
+    document.getElementById('quoteCancelEditBtn').classList.add('hidden');
+    await refreshAll();
+    const saved = (window.__cotizaciones || []).find(c => c.id === editedId);
+    renderRecibo(quote, saved ? saved.fecha : new Date().toISOString());
+    showView('recibo');
+    return;
+  }
+
+  const insertPayload = Object.assign({ estatus: 'Enviada', generado_por: currentUser.email }, quote);
+  let inserted = await sbInsert('cotizaciones', insertPayload);
+  if (!inserted && insertPayload.note) {
     // La columna "note" puede no existir todavía en Supabase; reintenta sin ella
     // para no bloquear el guardado (la nota de todos modos sale impresa en el PDF).
-    const { note, ...quoteSinNota } = quote;
+    const { note, ...quoteSinNota } = insertPayload;
     inserted = await sbInsert('cotizaciones', quoteSinNota);
   }
   if (!inserted) { showToast('No se pudo guardar la cotización, revisa tu conexión'); return; }
@@ -2022,17 +2044,27 @@ async function generatePresupuesto() {
     subtotal: totals.subtotal,
     iva: totals.iva,
     total: totals.total,
-    estatus: 'Enviada',
     iva_incluido: document.getElementById('presuIvaToggle').checked,
-    generado_por: currentUser.email,
   };
 
-  let inserted = await sbInsert('cotizaciones', quote);
-  if (!inserted && quote.note) {
-    const { note, ...quoteSinNota } = quote;
-    inserted = await sbInsert('cotizaciones', quoteSinNota);
+  if (editingQuoteId) {
+    // Igual que en el Cotizador: editar no debe tocar estatus/pagado/quién lo
+    // generó originalmente.
+    const ok = await sbUpdate('cotizaciones', editingQuoteId, quote);
+    if (!ok) showToast('No se pudo guardar el cambio, revisa tu conexión');
+    else showToast('Presupuesto ' + folio + ' actualizado');
+    editingQuoteId = null;
+    document.getElementById('presuGenerateBtn').textContent = '📄 Generar Presupuesto Spazio Luce';
+    document.getElementById('presuCancelEditBtn').classList.add('hidden');
+  } else {
+    const insertPayload = Object.assign({ estatus: 'Enviada', generado_por: currentUser.email }, quote);
+    let inserted = await sbInsert('cotizaciones', insertPayload);
+    if (!inserted && insertPayload.note) {
+      const { note, ...quoteSinNota } = insertPayload;
+      inserted = await sbInsert('cotizaciones', quoteSinNota);
+    }
+    if (!inserted) showToast('No se pudo guardar, pero se genera igual el PDF');
   }
-  if (!inserted) { showToast('No se pudo guardar, pero se genera igual el PDF'); }
 
   await upsertClienteContacto(client, quote.phone, quote.email, quote.address);
 
@@ -2060,6 +2092,71 @@ function reprintQuote(id) {
   if (!q) { showToast('No se encontró esa cotización'); return; }
   renderRecibo(q, q.fecha);
   showView('recibo');
+}
+
+// Abre una cotización ya guardada para modificarla. Detecta sola si es del
+// Cotizador (por catálogo) o de Presupuestos (por partidas/secciones) y la
+// manda a la pantalla correcta ya con todo lleno — "Generar" va a actualizar
+// esta misma fila en vez de crear una cotización nueva.
+async function editQuote(id) {
+  const q = (window.__cotizaciones || []).find(c => c.id === id);
+  if (!q) { showToast('No se encontró esa cotización'); return; }
+  editingQuoteId = id;
+  const hasSections = (q.items || []).some(it => it.section);
+
+  if (hasSections) {
+    showView('presupuestos');
+    document.getElementById('presuClient').value = q.client || '';
+    document.getElementById('presuProject').value = q.address || '';
+    document.getElementById('presuFolio').value = q.folio || '';
+    document.getElementById('presuContact').value = q.phone || q.email || '';
+    document.getElementById('presuNote').value = q.note || '';
+    document.getElementById('presuIvaToggle').checked = !!q.iva_incluido;
+    const fechaEl = document.getElementById('presuFecha');
+    fechaEl.value = q.fecha ? String(q.fecha).slice(0, 10) : todayForDateInput();
+    fechaEl.dataset.auto = '0';
+    document.getElementById('presupuestoRows').innerHTML = '';
+    presuRowCount = 0;
+    q.items.forEach(it => addPresuRow(it));
+    recalcPresuTotals();
+    document.getElementById('presuGenerateBtn').textContent = '💾 Guardar cambios';
+    document.getElementById('presuCancelEditBtn').classList.remove('hidden');
+  } else {
+    showView('cotizador');
+    // showView ya disparó prepareNewQuote() (limpia todo y calcula un folio
+    // nuevo) pero es async — hay que esperarlo antes de rellenar con los
+    // datos reales, si no la carrera deja el folio nuevo pisando el real.
+    await prepareNewQuote();
+    document.getElementById('quoteClient').value = q.client || '';
+    document.getElementById('quotePhone').value = q.phone || '';
+    document.getElementById('quoteEmail').value = q.email || '';
+    document.getElementById('quoteAddress').value = q.address || '';
+    document.getElementById('quoteNote').value = q.note || '';
+    document.getElementById('quoteFolio').value = q.folio || '';
+    // Los renglones se reconstruyen como productos simples (nombre/cantidad/
+    // precio editables) sin importar si originalmente eran por caja o por m² —
+    // el importe guardado no se pierde, solo se deja de recalcular solo por
+    // medida durante la edición.
+    (q.items || []).forEach(it => {
+      const qty = it.qty != null ? it.qty : (it.cajas != null ? it.cajas : 1);
+      const price = it.price != null ? it.price : (it.priceBox != null ? it.priceBox : round2((Number(it.importe) || 0) / (qty || 1)));
+      addProductRow({ name: it.name, qty, price, dept: it.dept || '' });
+    });
+    recalcTotals();
+    document.getElementById('quoteGenerateBtn').textContent = '💾 Guardar cambios';
+    document.getElementById('quoteCancelEditBtn').classList.remove('hidden');
+  }
+  showToast('Editando ' + (q.folio || 'cotización') + ' — los cambios sobrescriben la original');
+}
+
+function cancelEditQuote() {
+  editingQuoteId = null;
+  document.getElementById('quoteGenerateBtn').textContent = '📄 Generar Cotización';
+  document.getElementById('quoteCancelEditBtn').classList.add('hidden');
+  document.getElementById('presuGenerateBtn').textContent = '📄 Generar Presupuesto Spazio Luce';
+  document.getElementById('presuCancelEditBtn').classList.add('hidden');
+  prepareNewQuote();
+  preparePresupuestos();
 }
 
 const ESTATUS_OPTIONS = ['Enviada', 'En revisión', 'Aprobada', 'Rechazada'];
@@ -2130,6 +2227,7 @@ async function refreshAll() {
         ${estatusSelectHtml(q)}
         ${pagoBadgeHtml(q)}
         <button class="btn-ghost-sm" title="Ver / volver a descargar" onclick="reprintQuote(${q.id})">Ver</button>
+        <button class="btn-ghost-sm" title="Modificar" onclick="editQuote(${q.id})">✏️ Editar</button>
         <button class="remove-row-btn" title="Eliminar cotización" onclick="deleteQuote(${q.id})">✕</button>
       </div>
     </div>
