@@ -220,6 +220,7 @@
         <div id="productRows"></div>
         <button class="add-row-btn" onclick="addProductRow()">+ Agregar producto manual</button>
         <input type="file" id="excelInput" accept=".xlsx,.xls,.csv,.pdf" class="hidden" onchange="handleFileImport(event)" />
+        <input type="file" id="productoFotoInput" accept="image/*" class="hidden" onchange="onProductoFotoSelected(event)" />
         <button class="add-row-btn" style="margin-top:8px;border-color:var(--accent);color:var(--accent);" onclick="document.getElementById('excelInput').click()">📥 Importar desde Excel o PDF</button>
         <p style="font-size:11px;color:var(--text-secondary);margin:6px 2px 0;">
           Excel: columnas <b>Producto</b>, <b>Cantidad</b> y <b>Precio Unitario</b> (y opcional Sección/Unidad). PDF: intenta leer tablas de precios o cotizaciones automáticamente — revisa siempre lo que se agregó antes de generar, la lectura de PDF no es perfecta.

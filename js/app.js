@@ -82,6 +82,92 @@ async function sbUpdate(table, id, patch) {
   }
 }
 
+// ===== Fotos de producto: una imagen por nombre de producto del catálogo,
+// reusada en cualquier cotización que lo incluya (tabla producto_fotos +
+// bucket público "producto-fotos"). =====
+let productoFotos = {};
+
+async function cargarProductoFotos() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/producto_fotos?select=producto_nombre,foto_url`, { headers: sbHeaders() });
+    if (!res.ok) throw new Error('no se pudo leer producto_fotos');
+    const rows = await res.json();
+    productoFotos = {};
+    rows.forEach(r => { productoFotos[r.producto_nombre] = r.foto_url; });
+  } catch (e) {
+    console.error('Error cargando fotos de producto', e);
+  }
+}
+
+function sanitizeFotoPath(name) {
+  return String(name).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'producto';
+}
+
+async function uploadProductoFoto(productName, file) {
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+  const path = 'productos/' + sanitizeFotoPath(productName) + '.' + ext;
+  try {
+    const uploadRes = await fetch(`${SUPABASE_URL}/storage/v1/object/producto-fotos/${path}`, {
+      method: 'POST',
+      headers: sbHeaders({ 'Content-Type': file.type || 'image/jpeg', 'x-upsert': 'true' }),
+      body: file,
+    });
+    if (!uploadRes.ok) throw new Error('upload: ' + await uploadRes.text());
+    const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/producto-fotos/${path}?t=${Date.now()}`;
+    const rowRes = await fetch(`${SUPABASE_URL}/rest/v1/producto_fotos`, {
+      method: 'POST',
+      headers: sbHeaders({ 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' }),
+      body: JSON.stringify({ producto_nombre: productName, foto_url: publicUrl, updated_por: currentUser ? currentUser.email : null }),
+    });
+    if (!rowRes.ok) throw new Error('fila: ' + await rowRes.text());
+    productoFotos[productName] = publicUrl;
+    return publicUrl;
+  } catch (e) {
+    console.error('Error subiendo foto de producto', e);
+    showToast('No se pudo subir la foto');
+    return null;
+  }
+}
+
+// El <input type=file> real es uno solo y se reusa para cualquier producto —
+// se guarda para cuál fue en data-target antes de abrirlo.
+function pickProductoFoto(productName) {
+  const input = document.getElementById('productoFotoInput');
+  input.dataset.target = productName;
+  input.value = '';
+  input.click();
+}
+
+async function onProductoFotoSelected(event) {
+  const file = event.target.files[0];
+  const productName = event.target.dataset.target;
+  if (!file || !productName) return;
+  showToast('Subiendo foto…');
+  const url = await uploadProductoFoto(productName, file);
+  if (url) {
+    showToast('Foto guardada para "' + productName + '"');
+    renderCatalogItems();
+    document.querySelectorAll('.product-row, .product-row-coverage, .product-row-area').forEach(refreshRowPhoto);
+  }
+}
+
+// Muestra/actualiza la foto debajo de un renglón ya agregado a la cotización,
+// si el producto de esa fila tiene una foto guardada.
+function refreshRowPhoto(rowEl) {
+  const nameInput = rowEl.querySelector ? rowEl.querySelector('.p-name') : null;
+  const name = nameInput ? nameInput.value.trim() : '';
+  let photoBox = rowEl.querySelector(':scope > .item-photo-box');
+  const url = productoFotos[name];
+  if (!url) { if (photoBox) photoBox.remove(); return; }
+  if (!photoBox) {
+    photoBox = document.createElement('div');
+    photoBox.className = 'item-photo-box';
+    rowEl.appendChild(photoBox);
+  }
+  photoBox.innerHTML = `<img src="${url}" alt="${name}" />`;
+}
+
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.remove('hidden');
@@ -814,8 +900,13 @@ function renderCatalogItems() {
       priceLabel = eff ? fmtMoney(eff) + (p.m2PerPza ? '/pza · cubre ' + p.m2PerPza + ' m²' : '') : 'sin precio';
     }
     if (noLab) priceLabel += ' (sin LAB)';
+    const fotoUrl = productoFotos[p.name];
+    const fotoBtn = fotoUrl
+      ? `<button class="catalog-photo-thumb" title="Cambiar foto" onclick="pickProductoFoto('${p.name.replace(/'/g, "\\'")}')"><img src="${fotoUrl}" alt="" /></button>`
+      : `<button class="catalog-photo-btn" title="Agregar foto" onclick="pickProductoFoto('${p.name.replace(/'/g, "\\'")}')">📷</button>`;
     return `
     <div class="catalog-item">
+      ${fotoBtn}
       <div><span class="name">${p.name}</span><span class="price">${priceLabel}</span></div>
       <button onclick='addFromCatalog(${JSON.stringify(p)})'>+ Agregar</button>
     </div>
@@ -858,6 +949,7 @@ function addAreaRow(item) {
     </div>
   `;
   document.getElementById('productRows').appendChild(wrap);
+  refreshRowPhoto(wrap);
   recalcTotals();
 }
 
@@ -1230,6 +1322,7 @@ function addProductRow(prefill) {
     <button class="remove-row-btn" onclick="document.getElementById('${id}').remove(); recalcTotals();">✕</button>
   `;
   document.getElementById('productRows').appendChild(wrap);
+  refreshRowPhoto(wrap);
   recalcTotals();
 }
 
@@ -1259,6 +1352,7 @@ function addCoverageRow(item) {
     </div>
   `;
   document.getElementById('productRows').appendChild(wrap);
+  refreshRowPhoto(wrap);
   recalcTotals();
 }
 
@@ -1358,6 +1452,7 @@ async function prepareNewQuote() {
   ivaBtn.classList.add('lab-active');
   activeCatalogTab = Object.keys(CATALOG)[0];
   renderCatalogTabs();
+  await cargarProductoFotos();
   renderCatalogItems();
   const cotizaciones = await sbSelect('cotizaciones');
   document.getElementById('quoteFolio').value = nextFolioNumber(cotizaciones);
@@ -1377,7 +1472,7 @@ async function generateQuote() {
     const priceBox = parseFloat(row.dataset.priceBox) || 0;
     const m2 = largo * ancho;
     if (name && cajas > 0) {
-      rows.push({ name, largo, ancho, m2: Number(m2.toFixed(2)), cajas, priceBox, importe: cajas * priceBox, dept: row.dataset.dept || null });
+      rows.push({ name, largo, ancho, m2: Number(m2.toFixed(2)), cajas, priceBox, importe: cajas * priceBox, dept: row.dataset.dept || null, foto: productoFotos[name] || null });
     }
   });
 
@@ -1385,7 +1480,7 @@ async function generateQuote() {
     const name = row.querySelector('.p-name').value.trim();
     const qty = parseFloat(row.querySelector('.p-qty').value) || 0;
     const price = parseFloat(row.querySelector('.p-price').value) || 0;
-    if (name) rows.push({ name, qty, price, importe: qty * price, dept: row.dataset.dept || null, section: row.dataset.section || '', unit: row.dataset.unit || '' });
+    if (name) rows.push({ name, qty, price, importe: qty * price, dept: row.dataset.dept || null, section: row.dataset.section || '', unit: row.dataset.unit || '', foto: productoFotos[name] || null });
   });
 
   document.querySelectorAll('.product-row-area').forEach(row => {
@@ -1396,7 +1491,7 @@ async function generateQuote() {
     const installFee = parseFloat(row.dataset.installFee) || 0;
     const m2 = round2(ancho * alto);
     if (name && m2 > 0) {
-      rows.push({ name, ancho, alto, m2, pricePerM2, installFee, importe: round2(m2 * pricePerM2 + installFee), dept: row.dataset.dept || null });
+      rows.push({ name, ancho, alto, m2, pricePerM2, installFee, importe: round2(m2 * pricePerM2 + installFee), dept: row.dataset.dept || null, foto: productoFotos[name] || null });
     }
   });
 
@@ -1486,6 +1581,7 @@ function renderReciboProductos(quote, fechaObj, fmt, contactoLine) {
       <td>
         <span class="item-name">${it.name}</span>
         ${subLabel ? `<span class="item-sub">${subLabel}</span>` : ''}
+        ${it.foto ? `<div class="item-photo-box"><img src="${it.foto}" alt="${it.name}" /></div>` : ''}
       </td>
       <td>${cantLabel}</td>
       <td>${fmtMoney(priceLabel)}</td>
