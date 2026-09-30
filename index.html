@@ -37,7 +37,6 @@
       <button class="btn-primary" id="authSubmitBtn" onclick="handleAuthSubmit()">Entrar</button>
       <div id="loginError" class="login-err hidden"></div>
       <div class="setup-note">
-        <button type="button" id="toggleSignupBtn" class="link-btn" onclick="toggleSignupMode()">¿Primera vez? Crear tu cuenta</button>
         <button type="button" class="link-btn" onclick="showForgotPassword()">¿Olvidaste tu contraseña?</button>
       </div>
     </div>
@@ -149,7 +148,7 @@
           <label>Notas</label>
           <div class="input-wrap"><textarea id="clienteNotas" rows="3" style="width:100%; resize:vertical;"></textarea></div>
         </div>
-        <button class="btn-primary" onclick="saveCliente()">Guardar</button>
+        <button class="btn-primary" id="clienteSaveBtn" onclick="saveCliente()">Guardar</button>
         <button class="link-btn" style="display:block; margin:14px auto 0;" onclick="closeClienteModal()">Cerrar</button>
         <div id="clienteHistorial" style="margin-top:18px;"></div>
       </div>
@@ -338,7 +337,7 @@
             <input type="checkbox" id="gastoIvaToggle" checked />
             El monto ya incluye IVA
           </label>
-          <button class="btn-accent-sm" style="width:auto;" onclick="addGasto()">+ Agregar gasto</button>
+          <button class="btn-accent-sm" style="width:auto;" id="addGastoBtn" onclick="addGasto()">+ Agregar gasto</button>
           <div id="gastosList" style="margin-top:16px; max-height:280px; overflow-y:auto;"></div>
         </div>
       </div>
@@ -390,7 +389,7 @@
           <label>Monto recibido</label>
           <div class="input-wrap"><input type="number" min="0" step="0.01" id="pagoMonto" /></div>
         </div>
-        <button class="btn-primary" onclick="confirmPago()">Guardar pago</button>
+        <button class="btn-primary" id="confirmPagoBtn" onclick="confirmPago()">Guardar pago</button>
         <button class="link-btn" style="display:block; margin:14px auto 0;" onclick="closePagoModal()">Cancelar</button>
       </div>
     </div>

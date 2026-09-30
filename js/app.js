@@ -25,6 +25,11 @@ function sbHeaders(extra) {
   }, extra || {});
 }
 
+// Si falla la conexión, regresa igual un arreglo vacío (para no romper a quien
+// hace .forEach/.length sobre el resultado) pero marcado con __failed = true
+// (no enumerable, no sale en JSON.stringify ni en for..of) para que el código
+// que sí necesita distinguir "no hay datos" de "no se pudo conectar" — como el
+// cálculo del folio — pueda revisarlo.
 async function sbSelect(table, order) {
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*${order ? '&order=' + order : ''}`, {
@@ -34,7 +39,9 @@ async function sbSelect(table, order) {
     return await res.json();
   } catch (e) {
     console.error('Supabase select error', e);
-    return [];
+    const failed = [];
+    Object.defineProperty(failed, '__failed', { value: true, enumerable: false });
+    return failed;
   }
 }
 
@@ -192,6 +199,26 @@ function refreshRowPhoto(rowEl) {
   photoBox.innerHTML = `<img src="${url}" alt="${name}" />`;
 }
 
+// Deshabilita el botón mientras `fn` corre (para que un doble clic mientras se
+// guarda en Supabase, común con mala señal en el celular, no genere una
+// cotización/gasto/cliente duplicado) y lo vuelve a habilitar al terminar,
+// pase lo que pase adentro. Solo toca `disabled`/una clase — nunca el texto
+// del botón, porque varias de estas funciones ya cambian su propio texto
+// según el modo (ej. "Generar" vs "Guardar cambios" al editar).
+async function runWithButtonLock(btnId, fn) {
+  const btn = document.getElementById(btnId);
+  if (btn) {
+    if (btn.disabled) return; // ya hay un guardado en curso, ignora el clic extra
+    btn.disabled = true;
+    btn.classList.add('btn-loading');
+  }
+  try {
+    await fn();
+  } finally {
+    if (btn) { btn.disabled = false; btn.classList.remove('btn-loading'); }
+  }
+}
+
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.remove('hidden');
@@ -240,11 +267,22 @@ async function handleLogin() {
   await refreshAll();
 }
 
+// El botón para crear cuenta ya no está en la pantalla de login — los dos
+// correos autorizados ya tienen cuenta. Esta función se deja como candado de
+// seguridad por si algo la vuelve a invocar: solo deja pasar a estos correos.
+// Para dar de alta a alguien más, se agrega aquí Y en la tabla app_users.
+const SIGNUP_ALLOWED_EMAILS = ['salvarezdelfin@gmail.com', 'spazioluce09@gmail.com'];
+
 async function handleSignup() {
   const email = document.getElementById('loginUser').value.trim();
   const pass = document.getElementById('loginPass').value;
   const errBox = document.getElementById('loginError');
   errBox.classList.add('hidden');
+  if (!SIGNUP_ALLOWED_EMAILS.includes(email.toLowerCase())) {
+    errBox.textContent = 'Ese correo no está autorizado para crear una cuenta.';
+    errBox.classList.remove('hidden');
+    return;
+  }
   if (!email || pass.length < 6) {
     errBox.textContent = 'Escribe tu correo y una contraseña de al menos 6 caracteres.';
     errBox.classList.remove('hidden');
@@ -932,7 +970,7 @@ function renderCatalogItems() {
     <div class="catalog-item">
       ${fotoBtn}
       <div><span class="name">${p.name}</span><span class="price">${priceLabel}</span></div>
-      <button onclick='addFromCatalog(${JSON.stringify(p)})'>+ Agregar</button>
+      <button onclick='addFromCatalog(${JSON.stringify(p).replace(/'/g, "&#39;")})'>+ Agregar</button>
     </div>
   `;
   }).join('') : '<div class="catalog-empty">Sin resultados en esta categoría.</div>';
@@ -1216,6 +1254,7 @@ async function handlePdfImport(file, event) {
     const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
     let imported = 0;
     let currentSection = '';
+    let pendingText = '';
 
     for (let p = 1; p <= pdf.numPages; p++) {
       const page = await pdf.getPage(p);
@@ -1228,6 +1267,7 @@ async function handlePdfImport(file, event) {
         y: Math.round(it.transform[5] / 3) * 3,
       })).filter(it => it.text.trim());
 
+      pendingText = '';
       const rowsByY = {};
       items.forEach(it => {
         if (!rowsByY[it.y]) rowsByY[it.y] = [];
@@ -1243,24 +1283,53 @@ async function handlePdfImport(file, event) {
         // Detecta encabezados de sección (mayúsculas o Título Con Mayúsculas).
         if (looksLikeSectionHeader(lineText)) {
           currentSection = lineText;
+          pendingText = '';
+          return;
+        }
+
+        // La fila de SUMA/TOTAL del propio documento no es un concepto — es el
+        // total que la app ya recalcula sola. Importarla como renglón duplica
+        // el importe real de la cotización.
+        if (/^\s*(SUMA|SUB\s*-?\s*TOTAL|GRAN\s*TOTAL|TOTAL)\b/i.test(lineText)) {
+          pendingText = '';
           return;
         }
 
         // Busca 1 o 2 montos en dólares al final del renglón: P.U. e Importe (o solo Importe/Precio).
         const moneyMatches = [...lineText.matchAll(/\$\s*([\d,]+\.\d{2})/g)];
-        if (moneyMatches.length === 0) return;
+        if (moneyMatches.length === 0) {
+          // El número de fila (" 2", " 3"...) a veces cae en su propio renglón,
+          // separado del texto — no aporta nada, se ignora.
+          if (/^\d+$/.test(lineText)) return;
+          // Sin precio: un concepto largo suele envolver en 2-3 líneas y solo
+          // la última trae UN/CANT/PRECIO — esta línea es probablemente el
+          // inicio real del nombre, se guarda para pegarla a la siguiente
+          // línea que sí traiga precio (si no, se pierde el nombre real y
+          // queda solo la última palabra suelta).
+          pendingText = (pendingText + ' ' + lineText).trim().slice(-300);
+          return;
+        }
 
         const amounts = moneyMatches.map(m => parseFloat(m[1].replace(/,/g, '')));
         const firstMoneyIdx = lineText.indexOf(moneyMatches[0][0]);
         let before = lineText.slice(0, firstMoneyIdx).trim();
 
-        // Intenta separar "Concepto ... UN CANT" del texto antes del precio.
+        // Intenta separar "Concepto ... UN CANT" (o "Concepto ... CANT UN", ej.
+        // "15 m2") del texto antes del precio. Antes solo se reconocía el orden
+        // UN CANT — con unidades que terminan en dígito como "m2"/"m3" en el
+        // orden CANT UN, el número se cortaba mal (ej. "15 m2" se leía como
+        // cantidad 2, perdiendo el 15 real).
         let unit = '', qty = 1;
         const unitQtyMatch = before.match(/(\S+)\s+(\d+(?:\.\d+)?)\s*$/);
+        const qtyUnitMatch = before.match(/(\d+(?:\.\d+)?)\s+(\S+)\s*$/);
         if (unitQtyMatch && KNOWN_UNITS.includes(unitQtyMatch[1].toLowerCase().replace(/\./g, ''))) {
           unit = unitQtyMatch[1];
           qty = parseFloat(unitQtyMatch[2]);
           before = before.slice(0, unitQtyMatch.index).trim();
+        } else if (qtyUnitMatch && KNOWN_UNITS.includes(qtyUnitMatch[2].toLowerCase().replace(/\./g, ''))) {
+          qty = parseFloat(qtyUnitMatch[1]);
+          unit = qtyUnitMatch[2];
+          before = before.slice(0, qtyUnitMatch.index).trim();
         } else {
           const qtyOnlyMatch = before.match(/(\d+(?:\.\d+)?)\s*$/);
           if (qtyOnlyMatch) {
@@ -1269,11 +1338,17 @@ async function handlePdfImport(file, event) {
           }
         }
 
-        const name = before.replace(/^\d+\s+/, '').trim();
+        const name = (pendingText + ' ' + before).replace(/^\d+\s+/, '').trim();
+        pendingText = '';
         if (!name || name.length < 3) return;
 
-        // Si hay 2 montos, el primero es P.U. y el segundo es el Importe total de la fila.
-        const price = amounts[0];
+        // Si el renglón trae un solo monto, ese monto YA es el importe total de
+        // la partida (ej. "PISO BASE ... 15 m² ... $10,200.00"), no un precio
+        // unitario — tratarlo como P.U. y multiplicarlo de nuevo por la
+        // cantidad lo infla (15 x $10,200 en vez de $10,200). Con dos montos sí
+        // es una tabla real P.U./Importe, y el segundo es el importe.
+        const importeParsed = amounts.length >= 2 ? amounts[1] : amounts[0];
+        const price = qty > 0 ? round2(importeParsed / qty) : importeParsed;
 
         addImportedRow({ name, qty, price, unit, section: currentSection });
         imported++;
@@ -1297,28 +1372,62 @@ function handleExcelImport(event) {
       const data = new Uint8Array(e.target.result);
       const workbook = XLSX.read(data, { type: 'array' });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+      const raw = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', blankrows: false });
 
       const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
+      // Un documento real casi siempre trae filas de título arriba (nombre del
+      // negocio, cliente, fecha) antes del encabezado real -- asumir que la
+      // fila 1 siempre es el encabezado dejaba esas columnas sin detectar.
+      // Aquí se busca la fila que de verdad tiene cara de encabezado.
+      let headerRowIdx = raw.findIndex(row =>
+        row.some(c => { const k = norm(c); return k.includes('concepto') || k.includes('producto') || k.includes('nombre') || k.includes('descripcion'); }) &&
+        row.some(c => { const k = norm(c); return k.includes('cant') || k.includes('precio') || k.includes('importe') || k.includes('p.u'); })
+      );
+      if (headerRowIdx === -1) headerRowIdx = 0; // no se encontró: mejor esfuerzo, como antes
+
+      const headerRow = raw[headerRowIdx].map(norm);
+      const col = {
+        name: headerRow.findIndex(k => k.includes('concepto') || k.includes('producto') || k.includes('nombre') || k.includes('descripcion')),
+        qty: headerRow.findIndex(k => k.includes('cant')),
+        price: headerRow.findIndex(k => k.includes('precio') || k.includes('p.u')),
+        importe: headerRow.findIndex(k => k.includes('importe') || k === 'total'),
+        unit: headerRow.findIndex(k => k.replace(/\./g, '') === 'un' || k.includes('unidad')),
+        section: headerRow.findIndex(k => k.includes('seccion') || k.includes('categoria') || k.includes('partida')),
+      };
+
       let imported = 0;
-      rows.forEach(row => {
-        let name = '', qty = '', price = '', section = '', unit = '';
-        Object.keys(row).forEach(key => {
-          const k = norm(key);
-          if (k.includes('concepto') || k.includes('producto') || k.includes('nombre') || k.includes('descripcion')) name = row[key];
-          else if (k.includes('cant')) qty = row[key];
-          else if (k.includes('precio') || k === 'p.u.' || k.includes('p.u')) price = row[key];
-          else if (k.includes('seccion') || k.includes('categoria') || k.includes('partida')) section = row[key];
-          else if (k === 'un' || k.includes('unidad')) unit = row[key];
-        });
-        name = String(name || '').trim();
-        if (!name) return;
-        const qtyNum = parseFloat(qty) || 1;
-        const priceNum = parseFloat(String(price).replace(/[^0-9.]/g, '')) || 0;
-        addProductRow({ name, qty: qtyNum, price: priceNum, section: String(section || '').trim(), unit: String(unit || '').trim() });
+      let currentSection = '';
+      for (let i = headerRowIdx + 1; i < raw.length; i++) {
+        const r = raw[i];
+        const nonEmpty = r.filter(c => String(c).trim() !== '');
+        if (nonEmpty.length === 0) continue;
+
+        // La fila de SUMA/TOTAL del propio documento no es un concepto.
+        if (nonEmpty.some(c => /^(SUMA|SUB\s*-?\s*TOTAL|GRAN\s*TOTAL|TOTAL)$/i.test(String(c).trim()))) continue;
+
+        // Una fila con una sola celda de texto y sin números es un encabezado
+        // de sección, no un concepto -- se guarda para las filas que le siguen.
+        const hasNumberOrPrice = nonEmpty.some(c => typeof c === 'number' || /\d/.test(String(c)));
+        if (nonEmpty.length === 1 && !hasNumberOrPrice) { currentSection = String(nonEmpty[0]).trim(); continue; }
+
+        const name = col.name >= 0 ? String(r[col.name] || '').trim() : '';
+        if (!name) continue;
+        const qty = col.qty >= 0 ? (parseFloat(r[col.qty]) || 1) : 1;
+        let price = col.price >= 0 ? (parseFloat(String(r[col.price]).replace(/[^0-9.\-]/g, '')) || 0) : 0;
+        // Si no hay columna de P.U. pero sí de Importe, ese monto es el total
+        // de la fila, no el precio unitario -- se calcula el unitario en
+        // reversa para no inflarlo al multiplicar de nuevo por la cantidad.
+        if (col.price < 0 && col.importe >= 0) {
+          const importeNum = parseFloat(String(r[col.importe]).replace(/[^0-9.\-]/g, '')) || 0;
+          price = qty > 0 ? round2(importeNum / qty) : importeNum;
+        }
+        const unit = col.unit >= 0 ? String(r[col.unit] || '').trim() : '';
+        const section = col.section >= 0 ? String(r[col.section] || '').trim() : currentSection;
+
+        addProductRow({ name, qty, price, section, unit });
         imported++;
-      });
+      }
 
       showToast(imported > 0 ? `${imported} concepto(s) importados del Excel` : 'No se encontraron filas válidas en el archivo');
     } catch (err) {
@@ -1481,12 +1590,18 @@ async function prepareNewQuote() {
   renderCatalogTabs();
   await cargarProductoFotos();
   renderCatalogItems();
-  const cotizaciones = await sbSelect('cotizaciones');
+  const cotizacionesRes = await sbSelect('cotizaciones');
+  if (cotizacionesRes.__failed) showToast('No se pudo conectar para calcular el folio — revisa tu conexión');
+  const cotizaciones = cotizacionesRes.__failed ? (window.__cotizaciones || []) : cotizacionesRes;
   document.getElementById('quoteFolio').value = nextFolioNumber(cotizaciones);
   recalcTotals();
 }
 
 async function generateQuote() {
+  await runWithButtonLock('quoteGenerateBtn', generateQuoteImpl);
+}
+
+async function generateQuoteImpl() {
   const client = document.getElementById('quoteClient').value.trim();
   if (!client) { showToast('Escribe el nombre del cliente'); return; }
   const rows = [];
@@ -2021,12 +2136,19 @@ async function presuImportPdf(file, event) {
         const firstMoneyIdx = lineText.indexOf(moneyMatches[0][0]);
         let before = lineText.slice(0, firstMoneyIdx).trim();
 
+        // "Concepto ... UN CANT" o "Concepto ... CANT UN" (ej. "15 m2" — con
+        // unidades que terminan en dígito, ese orden se cortaba mal antes).
         let unit = '', qty = 1;
         const unitQtyMatch = before.match(/(\S+)\s+(\d+(?:\.\d+)?)\s*$/);
+        const qtyUnitMatch = before.match(/(\d+(?:\.\d+)?)\s+(\S+)\s*$/);
         if (unitQtyMatch && KNOWN_UNITS.includes(unitQtyMatch[1].toLowerCase().replace(/\./g, ''))) {
           unit = unitQtyMatch[1];
           qty = parseFloat(unitQtyMatch[2]);
           before = before.slice(0, unitQtyMatch.index).trim();
+        } else if (qtyUnitMatch && KNOWN_UNITS.includes(qtyUnitMatch[2].toLowerCase().replace(/\./g, ''))) {
+          qty = parseFloat(qtyUnitMatch[1]);
+          unit = qtyUnitMatch[2];
+          before = before.slice(0, qtyUnitMatch.index).trim();
         } else {
           const qtyOnlyMatch = before.match(/(\d+(?:\.\d+)?)\s*$/);
           if (qtyOnlyMatch) { qty = parseFloat(qtyOnlyMatch[1]); before = before.slice(0, qtyOnlyMatch.index).trim(); }
@@ -2137,6 +2259,10 @@ async function presuImportDocx(file, event) {
 }
 
 async function generatePresupuesto() {
+  await runWithButtonLock('presuGenerateBtn', generatePresupuestoImpl);
+}
+
+async function generatePresupuestoImpl() {
   const client = document.getElementById('presuClient').value.trim();
   if (!client) { showToast('Escribe el nombre del cliente'); return; }
 
@@ -2313,8 +2439,16 @@ function pagoBadgeHtml(q) {
 }
 
 async function refreshAll() {
-  const cotizaciones = await sbSelect('cotizaciones', 'id.desc');
-  const clientes = await sbSelect('clientes', 'id.desc');
+  const cotizacionesRes = await sbSelect('cotizaciones', 'id.desc');
+  const clientesRes = await sbSelect('clientes', 'id.desc');
+  // Si falló la conexión, no se pisa el último caché bueno con una lista
+  // vacía — eso hacía que el Dashboard se viera "en ceros" y que el folio de
+  // la próxima cotización se reiniciara a SL-0001 aunque sí hubiera cotizaciones.
+  if (cotizacionesRes.__failed || clientesRes.__failed) {
+    showToast('No se pudo conectar con el servidor — mostrando los últimos datos guardados');
+  }
+  const cotizaciones = cotizacionesRes.__failed ? (window.__cotizaciones || []) : cotizacionesRes;
+  const clientes = clientesRes.__failed ? (window.__clientesCache || []) : clientesRes;
   window.__cotizaciones = cotizaciones;
   window.__clientesCache = clientes;
 
@@ -2446,6 +2580,10 @@ function closeClienteModal() {
 }
 
 async function saveCliente() {
+  await runWithButtonLock('clienteSaveBtn', saveClienteImpl);
+}
+
+async function saveClienteImpl() {
   const name = document.getElementById('clienteNombre').value.trim();
   if (!name) { showToast('Escribe el nombre del cliente'); return; }
   const patch = {
@@ -2487,6 +2625,10 @@ function closePagoModal() {
 }
 
 async function confirmPago() {
+  await runWithButtonLock('confirmPagoBtn', confirmPagoImpl);
+}
+
+async function confirmPagoImpl() {
   if (!pagoTargetId) return;
   const fecha_pago = document.getElementById('pagoFecha').value;
   const metodo_pago = document.getElementById('pagoMetodo').value.trim();
@@ -2608,6 +2750,10 @@ async function refreshContabilidad() {
 }
 
 async function addGasto() {
+  await runWithButtonLock('addGastoBtn', addGastoImpl);
+}
+
+async function addGastoImpl() {
   const fecha = document.getElementById('gastoFecha').value || todayForDateInput();
   const concepto = document.getElementById('gastoConcepto').value.trim();
   const monto = parseFloat(document.getElementById('gastoMonto').value) || 0;
