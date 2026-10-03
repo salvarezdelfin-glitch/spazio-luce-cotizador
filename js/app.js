@@ -25,12 +25,9 @@ function sbHeaders(extra) {
   }, extra || {});
 }
 
-// Si falla la conexión, regresa igual un arreglo vacío (para no romper a quien
-// hace .forEach/.length sobre el resultado) pero marcado con __failed = true
-// (no enumerable, no sale en JSON.stringify ni en for..of) para que el código
-// que sí necesita distinguir "no hay datos" de "no se pudo conectar" — como el
-// cálculo del folio — pueda revisarlo.
-async function sbSelect(table, order) {
+// null = falló la conexión; [] = la tabla de verdad está vacía. Quien necesita
+// distinguirlos (el folio, el caché del Dashboard) usa sbSelectRaw.
+async function sbSelectRaw(table, order) {
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*${order ? '&order=' + order : ''}`, {
       headers: sbHeaders(),
@@ -39,10 +36,12 @@ async function sbSelect(table, order) {
     return await res.json();
   } catch (e) {
     console.error('Supabase select error', e);
-    const failed = [];
-    Object.defineProperty(failed, '__failed', { value: true, enumerable: false });
-    return failed;
+    return null;
   }
+}
+
+async function sbSelect(table, order) {
+  return (await sbSelectRaw(table, order)) || [];
 }
 
 async function sbInsert(table, row) {
@@ -196,13 +195,13 @@ function refreshRowPhoto(rowEl) {
     photoBox.className = 'item-photo-box';
     rowEl.appendChild(photoBox);
   }
-  photoBox.innerHTML = `<img src="${url}" alt="${name}" />`;
+  photoBox.innerHTML = `<img src="${url}" alt="${escapeHtml(name)}" />`;
 }
 
 // Deshabilita el botón mientras `fn` corre (para que un doble clic mientras se
 // guarda en Supabase, común con mala señal en el celular, no genere una
 // cotización/gasto/cliente duplicado) y lo vuelve a habilitar al terminar,
-// pase lo que pase adentro. Solo toca `disabled`/una clase — nunca el texto
+// pase lo que pase adentro. Solo toca `disabled` — nunca el texto
 // del botón, porque varias de estas funciones ya cambian su propio texto
 // según el modo (ej. "Generar" vs "Guardar cambios" al editar).
 async function runWithButtonLock(btnId, fn) {
@@ -210,38 +209,27 @@ async function runWithButtonLock(btnId, fn) {
   if (btn) {
     if (btn.disabled) return; // ya hay un guardado en curso, ignora el clic extra
     btn.disabled = true;
-    btn.classList.add('btn-loading');
   }
   try {
     await fn();
   } finally {
-    if (btn) { btn.disabled = false; btn.classList.remove('btn-loading'); }
+    if (btn) btn.disabled = false;
   }
+}
+
+// Todo texto que viene de fuera (nombres importados de un PDF/Excel, clientes,
+// notas) pasa por aquí antes de ir a innerHTML: sin esto una comilla rompe el
+// campo y un archivo malicioso podría inyectar código en la página.
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.remove('hidden');
   setTimeout(() => t.classList.add('hidden'), 2500);
-}
-
-let signupMode = false;
-function toggleSignupMode() {
-  signupMode = !signupMode;
-  document.getElementById('authTitle').textContent = signupMode ? 'Crear cuenta' : 'Iniciar sesión';
-  document.getElementById('authSub').textContent = signupMode
-    ? 'Solo para los correos autorizados de Spazio Luce'
-    : 'Acceso al sistema de gestión · Spazio Luce';
-  document.getElementById('authSubmitBtn').textContent = signupMode ? 'Crear cuenta' : 'Entrar';
-  document.getElementById('toggleSignupBtn').textContent = signupMode
-    ? '¿Ya tienes cuenta? Inicia sesión'
-    : '¿Primera vez? Crear tu cuenta';
-  document.getElementById('loginError').classList.add('hidden');
-  document.getElementById('loginError').style.color = '';
-}
-async function handleAuthSubmit() {
-  if (signupMode) await handleSignup();
-  else await handleLogin();
 }
 
 function showApp() {
@@ -265,45 +253,6 @@ async function handleLogin() {
   currentUser = { email: data.user.email };
   showApp();
   await refreshAll();
-}
-
-// El botón para crear cuenta ya no está en la pantalla de login — los dos
-// correos autorizados ya tienen cuenta. Esta función se deja como candado de
-// seguridad por si algo la vuelve a invocar: solo deja pasar a estos correos.
-// Para dar de alta a alguien más, se agrega aquí Y en la tabla app_users.
-const SIGNUP_ALLOWED_EMAILS = ['salvarezdelfin@gmail.com', 'spazioluce09@gmail.com'];
-
-async function handleSignup() {
-  const email = document.getElementById('loginUser').value.trim();
-  const pass = document.getElementById('loginPass').value;
-  const errBox = document.getElementById('loginError');
-  errBox.classList.add('hidden');
-  if (!SIGNUP_ALLOWED_EMAILS.includes(email.toLowerCase())) {
-    errBox.textContent = 'Ese correo no está autorizado para crear una cuenta.';
-    errBox.classList.remove('hidden');
-    return;
-  }
-  if (!email || pass.length < 6) {
-    errBox.textContent = 'Escribe tu correo y una contraseña de al menos 6 caracteres.';
-    errBox.classList.remove('hidden');
-    return;
-  }
-  const { data, error } = await supabaseClient.auth.signUp({ email, password: pass });
-  if (error) {
-    errBox.textContent = error.message;
-    errBox.classList.remove('hidden');
-    return;
-  }
-  if (data.session) {
-    currentAccessToken = data.session.access_token;
-    currentUser = { email: data.user.email };
-    showApp();
-    await refreshAll();
-  } else {
-    errBox.classList.remove('hidden');
-    errBox.style.color = 'var(--green)';
-    errBox.textContent = 'Cuenta creada. Revisa tu correo para confirmarla y luego inicia sesión.';
-  }
 }
 
 async function handleLogout() {
@@ -379,509 +328,6 @@ function showView(view) {
   if (view === 'reportes') refreshReportes();
 }
 
-// Catálogo real de Spazio Luce, cargado 2026-09-14 de 3 listas de precios reales:
-// "Catálogo Tekno-Step" (deck/muros/pisos/madera, precios YA con IVA), "Lista de
-// Precios Candiles y Armazones" (precio final por pieza), y "Lista de Precios
-// Iluminación LED x150" (precios SIN IVA 16% — así vienen en la fuente; si se
-// quiere que hablen el mismo idioma que los demás, hay que sumarles el 16%).
-// Cortinas y Persianas queda igual — el usuario va a mandar esa lista actualizada
-// después.
-const CATALOG = {
-  "Iluminación · Paneles LED": [
-    { name: "Panel Slim de 3W Redondo", price: 35.33, lab: 21.76 },
-    { name: "Panel Slim de 6W Redondo", price: 41.97, lab: 25.84 },
-    { name: "Panel Slim de 9W Redondo", price: 59.64, lab: 36.72 },
-    { name: "Panel Slim de 12W Redondo", price: 68.46, lab: 42.16 },
-    { name: "Panel Slim de 18W Redondo", price: 90.55, lab: 55.76 },
-    { name: "Panel Slim de 24W Redondo", price: 161.23, lab: 99.28 },
-    { name: "Panel Slim de 6W Cuadrado", price: 53.01, lab: 32.64 },
-    { name: "Panel Slim de 9W Cuadrado", price: 68.46, lab: 42.16 },
-    { name: "Panel Slim de 12W Cuadrado", price: 75.10, lab: 46.24 },
-    { name: "Panel Slim de 18W Cuadrado", price: 101.59, lab: 62.56 },
-    { name: "Panel Slim de 24W Cuadrado", price: 174.49, lab: 107.44 },
-    { name: "Panel Slim Satinado 4W Redondo 6500K", price: 64.06, lab: 39.44 },
-    { name: "Panel Slim Satinado 6W Redondo 6500K", price: 72.88, lab: 44.88 },
-    { name: "Panel Slim Satinado 9W Redondo 6500K", price: 90.55, lab: 55.76 },
-    { name: "Panel Slim Satinado 12W Redondo 6500K", price: 101.59, lab: 62.56 },
-    { name: "Panel Slim Satinado 15W Redondo 6500K", price: 114.85, lab: 70.72 },
-    { name: "Panel Slim Satinado 4W Cuadrado 6500K", price: 68.46, lab: 42.16 },
-    { name: "Panel Slim Satinado 6W Cuadrado 6500K", price: 83.93, lab: 51.68 },
-    { name: "Panel Slim Satinado 9W Cuadrado 6500K", price: 97.18, lab: 59.84 },
-    { name: "Panel Slim Satinado 12W Cuadrado 6500K", price: 110.43, lab: 68.00 },
-    { name: "Panel Slim Satinado 15W Cuadrado 6500K", price: 123.68, lab: 76.16 },
-    { name: "Panel Slim Dorado 4W Redondo 6500K", price: 64.06, lab: 39.44 },
-    { name: "Panel Slim Dorado 6W Redondo 6500K", price: 75.10, lab: 46.24 },
-    { name: "Panel Slim Dorado 9W Redondo 6500K", price: 88.35, lab: 54.40 },
-    { name: "Panel Slim Dorado 12W Redondo 6500K", price: 101.59, lab: 62.56 },
-    { name: "Panel Slim Dorado 15W Redondo 6500K", price: 114.85, lab: 70.72 },
-    { name: "Panel Slim Dorado 4W Cuadrado 6500K", price: 68.46, lab: 42.16 },
-    { name: "Panel Slim Dorado 6W Cuadrado 6500K", price: 77.30, lab: 47.60 },
-    { name: "Panel Slim Dorado 9W Cuadrado 6500K", price: 94.97, lab: 58.48 },
-    { name: "Panel Slim Dorado 12W Cuadrado 6500K", price: 106.01, lab: 65.28 },
-    { name: "Panel Slim Dorado 15W Cuadrado 6500K", price: 121.48, lab: 74.80 },
-    { name: "Panel Sobreponer FAT 6W Redondo", price: 53.01, lab: 32.64 },
-    { name: "Panel Sobreponer FAT 12W Redondo", price: 75.10, lab: 46.24 },
-    { name: "Panel Sobreponer FAT 18W Redondo", price: 97.18, lab: 59.84 },
-    { name: "Panel Sobreponer FAT 24W Redondo", price: 156.81, lab: 96.56 },
-    { name: "Panel Sobreponer FAT 6W Cuadrado", price: 57.42, lab: 35.36 },
-    { name: "Panel Sobreponer FAT 12W Cuadrado", price: 86.14, lab: 53.04 },
-    { name: "Panel Sobreponer FAT 18W Cuadrado", price: 110.43, lab: 68.00 },
-    { name: "Panel Sobreponer FAT 24W Cuadrado", price: 172.27, lab: 106.08 },
-    { name: "Panel Sobreponer 6W Redondo Tres Colores", price: 86.14, lab: 53.04 },
-    { name: "Panel Sobreponer 12W Redondo Tres Colores", price: 136.94, lab: 84.32 },
-    { name: "Panel Sobreponer 18W Redondo Tres Colores", price: 183.31, lab: 112.88 },
-    { name: "Panel Sobreponer 24W Redondo Tres Colores", price: 265.04, lab: 163.20 },
-    { name: "Panel Sobreponer 6W Cuadrado Tres Colores", price: 81.72, lab: 50.32 },
-    { name: "Panel Sobreponer 12W Cuadrado Tres Colores", price: 121.48, lab: 74.80 },
-    { name: "Panel Sobreponer 18W Cuadrado Tres Colores", price: 161.23, lab: 99.28 },
-    { name: "Panel Sobreponer 24W Cuadrado Tres Colores", price: 240.75, lab: 148.24 },
-    { name: "Panel NT-P600600 48W", price: 430.68, lab: 265.20 },
-    { name: "Panel NT-P3001200 48W", price: 499.15, lab: 307.36 },
-    { name: "Panel NT-P6001200 96W", price: 1269.97, lab: 782.00 },
-    { name: "Panel 600600 Tres Colores 48W", price: 633.88, lab: 390.32 },
-    { name: "Panel Slim 600600 48W", price: 731.06, lab: 450.16 },
-    { name: "Aspirina Sobreponer 18W 6500K/3000K", price: 70.68, lab: 43.52 },
-    { name: "Aspirina Sobreponer 24W 6500K/3000K", price: 108.23, lab: 66.64 },
-    { name: "Aspirina Sobreponer 32W 6500K/3000K", price: 145.77, lab: 89.76 },
-    { name: "Aspirina Ajustable 18W 6500K/3000K", price: 64.06, lab: 39.44 },
-    { name: "Aspirina Ajustable 24W 6500K/3000K", price: 92.77, lab: 57.12 },
-    { name: "Aspirina Ajustable 32W 6500K/3000K", price: 141.36, lab: 87.04 },
-    { name: "Ajustable Redondo 12W 6500K/3000K", price: 64.06, lab: 39.44 },
-    { name: "Ajustable Redondo 18W 6500K/3000K", price: 92.77, lab: 57.12 },
-    { name: "Ajustable Redondo 24W 6500K/3000K", price: 128.10, lab: 78.88 },
-  ],
-  "Iluminación · Tiras, Neón y COB": [
-    { name: "Neón Eco 12V 5M (8 colores)", price: 103.81, lab: 63.92 },
-    { name: "Neón Pro 12V 5M (8 colores)", price: 203.20, lab: 125.12 },
-    { name: "Neón 5M RGB 12V", price: 406.39, lab: 250.24 },
-    { name: "COB 12V 5M (7 colores)", price: 249.57, lab: 153.68 },
-    { name: "COB 24V 10M (8 colores)", price: 329.09, lab: 202.64 },
-    { name: "Manguera 4040 127V 50M (6 colores)", price: 1523.96, lab: 938.40 },
-    { name: "Pixel 5050 10MTS 24V", price: 1433.41, lab: 882.64 },
-    { name: "Neón 360 Pixel 10MT 24V", price: 2009.86, lab: 1237.60 },
-    { name: "Manguera Neón Pixel 24V 10MTS", price: 1473.17, lab: 907.12 },
-    { name: "COB Eco 50M 127V (Blanco/Cálido)", price: 2665.83, lab: 1641.52 },
-    { name: "COB Pro 50M 127V (Blanco/Cálido)", price: 3301.92, lab: 2033.20 },
-    { name: "LED Strip 2835 50M 127V", price: 1943.60, lab: 1196.80 },
-    { name: "LED Strip Conexión Directa 2835 127V 120D 8mm 50M", price: 1981.15, lab: 1219.92 },
-    { name: "LED Strip Neón 2835 127V 50M", price: 2513.43, lab: 1547.68 },
-    { name: "Manguera Doble Línea 127V 2835 50M", price: 3288.67, lab: 2025.04 },
-    { name: "Neón 50MTS RGB 3535 127V", price: 3149.52, lab: 1939.36 },
-    { name: "5050 127V RGB 50M", price: 4600.59, lab: 2832.88 },
-    { name: "Manguera Cuadrada 127V 12x12 Blanco Cálido", price: 4306.85, lab: 2652.00 },
-    { name: "Víbora Flexible Rollo 100mts", price: 3489.65, lab: 2148.80 },
-    { name: "Manguera 10mts 24V 2835 Interior", price: 187.73, lab: 115.60 },
-  ],
-  "Iluminación · Fuentes y Reflectores": [
-    { name: "Fuente Slim Interior 12V 100W", price: 258.41, lab: 159.12 },
-    { name: "Fuente Slim Interior 12V 300W", price: 481.48, lab: 296.48 },
-    { name: "Fuente Slim Interior 12V 400W", price: 583.09, lab: 359.04 },
-    { name: "Fuente Slim Interior 24V 100W", price: 258.41, lab: 159.12 },
-    { name: "Fuente Slim Interior 24V 300W", price: 384.31, lab: 236.64 },
-    { name: "Fuente Universal 12-24V 60W", price: 216.44, lab: 133.28 },
-    { name: "Fuente Universal 12-24V 100W", price: 267.24, lab: 164.56 },
-    { name: "Fuente Universal 12-24V 200W", price: 315.83, lab: 194.48 },
-    { name: "Fuente Universal 12-24V 300W", price: 368.85, lab: 227.12 },
-    { name: "Fuente Universal 12-24V 400W", price: 419.64, lab: 258.40 },
-    { name: "Reflector Cobra 100W", price: 801.73, lab: 493.68 },
-    { name: "Reflector Cobra 150W", price: 1051.31, lab: 647.36 },
-    { name: "Reflector Cobra 200W", price: 1378.20, lab: 848.64 },
-    { name: "Reflector Cobra 250W", price: 1727.16, lab: 1063.52 },
-    { name: "Reflector Cobra 300W", price: 2102.63, lab: 1294.72 },
-    { name: "Reflector NT-TG128 10W", price: 79.51, lab: 48.96 },
-    { name: "Reflector NT-TG128 20W", price: 114.85, lab: 70.72 },
-    { name: "Reflector NT-TG128 30W", price: 159.02, lab: 97.92 },
-    { name: "Reflector NT-TG128 50W", price: 231.91, lab: 142.80 },
-    { name: "Reflector NT-TG128 100W", price: 435.10, lab: 267.92 },
-    { name: "Reflector NT-TG128 150W", price: 600.75, lab: 369.92 },
-    { name: "Reflector NT-TG128 200W", price: 852.53, lab: 524.96 },
-    { name: "Reflector NT-TG128 300W", price: 1177.20, lab: 724.88 },
-    { name: "Reflector NT-TG128 400W", price: 1409.11, lab: 867.68 },
-    { name: "Reflector RGB 50W", price: 468.23, lab: 288.32 },
-    { name: "Reflector RGB 100W", price: 722.23, lab: 444.72 },
-    { name: "UFO .7 100W", price: 437.31, lab: 269.28 },
-    { name: "UFO .7 150W", price: 574.25, lab: 353.60 },
-    { name: "UFO .7 200W", price: 777.44, lab: 478.72 },
-    { name: "UFO .7 300W", price: 1190.46, lab: 733.04 },
-    { name: "UFO .9 100W", price: 523.45, lab: 322.32 },
-    { name: "UFO .9 150W", price: 706.76, lab: 435.20 },
-    { name: "UFO .9 200W", price: 943.09, lab: 580.72 },
-    { name: "Reflector Alta Potencia 50W", price: 1075.61, lab: 662.32 },
-    { name: "Reflector Alta Potencia 100W", price: 1943.60, lab: 1196.80 },
-    { name: "Reflector Alta Potencia 150W", price: 2539.94, lab: 1564.00 },
-    { name: "Reflector Alta Potencia 200W", price: 3257.74, lab: 2006.00 },
-    { name: "Reflector Alta Potencia 250W", price: 4136.78, lab: 2547.28 },
-    { name: "Reflector Alta Potencia 300W", price: 4980.48, lab: 3066.80 },
-    { name: "Reflector Alta Potencia 400W", price: 6500.03, lab: 4002.48 },
-    { name: "Reflector Alta Potencia 500W", price: 8070.38, lab: 4969.44 },
-    { name: "Reflector Alta Potencia 600W", price: 9499.36, lab: 5849.36 },
-  ],
-  "Iluminación · Solares": [
-    { name: "Suburbana Solar Doble Cara 50W", price: 448.35, lab: 276.08 },
-    { name: "Suburbana Solar Doble Cara 100W", price: 784.07, lab: 482.80 },
-    { name: "Suburbana Solar Doble Cara 200W", price: 1002.73, lab: 617.44 },
-    { name: "Reflector Solar Doble Cara 200W", price: 1269.97, lab: 782.00 },
-    { name: "Reflector Solar Doble Cara 300W", price: 1440.04, lab: 886.72 },
-    { name: "Reflector Solar 6 Módulos 100W", price: 1426.78, lab: 878.56 },
-    { name: "Reflector Solar 6 Módulos 200W", price: 2001.02, lab: 1232.16 },
-    { name: "Reflector Solar 6 Módulos 300W", price: 2502.39, lab: 1540.88 },
-    { name: "Suburbana Solar Panel Independiente 100W", price: 2252.81, lab: 1387.20 },
-    { name: "Suburbana Solar Panel Independiente 200W", price: 2628.28, lab: 1618.40 },
-    { name: "Suburbana Solar Panel Independiente 300W", price: 4130.16, lab: 2543.20 },
-    { name: "Suburbana Solar Panel Integrado 200W", price: 1552.67, lab: 956.08 },
-    { name: "Suburbana Solar Panel Integrado 300W", price: 2054.04, lab: 1264.80 },
-  ],
-  "Iluminación · Focos y Accesorios": [
-    { name: "Foco Bala 10W", price: 17.67, lab: 10.88 },
-    { name: "Foco Bala 20W", price: 40.19, lab: 24.75 },
-    { name: "Foco Bala 30W", price: 58.53, lab: 36.04 },
-    { name: "Foco Bala 40W", price: 85.03, lab: 52.36 },
-    { name: "Foco Bala 50W", price: 106.01, lab: 65.28 },
-    { name: "Foco Xaomi 10W", price: 28.71, lab: 17.68 },
-    { name: "Foco Xaomi 20W", price: 44.17, lab: 27.20 },
-    { name: "Tubo LED T8 18W Cristal (Transparente/Opalino)", price: 50.80, lab: 31.28 },
-    { name: "Barra Flat Cristalina 36W 1.20", price: 139.14, lab: 85.68 },
-    { name: "Barra Flat Cristalina 54W 1.20", price: 187.73, lab: 115.60 },
-    { name: "Barra Flat Cristalina 72W 1.20", price: 238.53, lab: 146.88 },
-    { name: "Regletra Tubo Plástico T8 1.2M", price: 99.39, lab: 61.20 },
-    { name: "Control Manguera Pixel 5050-360°", price: 192.15, lab: 118.32 },
-    { name: "Conector 8mm Forma I", price: 8.61, lab: 5.30 },
-    { name: "Conector 8mm Forma L", price: 17.01, lab: 10.47 },
-    { name: "Conector 8mm Forma C", price: 19.44, lab: 11.97 },
-    { name: "Conector 8mm Forma T", price: 37.55, lab: 23.12 },
-    { name: "Eliminador 12V 3A", price: 97.18, lab: 59.84 },
-    { name: "Plug 6mm/7mm", price: 48.59, lab: 29.92 },
-    { name: "Plug COB (incluye accesorios)", price: 70.68, lab: 43.52 },
-    { name: "Pin H para tira de 6mm", price: 11.04, lab: 6.80 },
-    { name: "Pin H para tira de 7mm", price: 11.04, lab: 6.80 },
-    { name: "Pin H para tira de 9mm", price: 11.04, lab: 6.80 },
-    { name: "Pin H para tira RGB", price: 19.88, lab: 12.24 },
-    { name: "Conector Hembra", price: 19.88, lab: 12.24 },
-    { name: "Conector Hembra Cable", price: 15.46, lab: 9.52 },
-  ],
-  "Candiles · Níquel": [
-    { name: "Candil Romano (Níquel, 12 luces, Ø70cm)", price: 23901.00 },
-    { name: "Candil Versalles Níquel 6 Luces (Ø60cm)", price: 12729.00 },
-    { name: "Candil Versalles Níquel 8 Luces (Ø60cm)", price: 16705.00 },
-    { name: "Candil Tubular Níquel (5 luces, Ø70cm)", price: 7320.00 },
-    { name: "Lámpara Auris Especial Níquel (5 luces, Ø55cm)", price: 9116.00 },
-    { name: "Plafón Circular 2 Luces Níquel (Ø20cm)", price: 4178.00 },
-    { name: "Plafón 3 Cuadros Níquel (Ø25cm)", price: 8270.00 },
-    { name: "Plafón 3 Círculos Níquel (Ø33cm)", price: 8967.00 },
-    { name: "Plafón Cascada Níquel (3+2+1 luces, Ø30cm)", price: 19138.00 },
-    { name: "Plafón Cuadro Níquel Strass (1 luz)", price: 2756.00 },
-    { name: "Plafón Oval Níquel (3 luces)", price: 4292.00 },
-    { name: "Plafón Brazo con Cuadro Níquel (3 luces)", price: 4209.00 },
-    { name: "Lámpara de Mesa Cuadro Níquel (Swarovski Spectra, 30cm)", price: 2756.00 },
-    { name: "Lámpara de Mesa Cuadro Níquel (Swarovski Strass, 30cm)", price: 3104.00 },
-    { name: "Lámpara de Mesa Rectangular (Strass, 2 luces, 25x18cm)", price: 4972.00 },
-    { name: "Candil B.2 (Níquel, 5 luces, económico)", price: 19439.00 },
-  ],
-  "Candiles · Swarovski": [
-    { name: "Candil B.2 (Oro 24k, Swarovski Strass, 5 luces)", price: 48598.00 },
-    { name: "Candil Europa (Oro 24k y Níquel, Strass, 6 luces, Ø80cm)", price: 19810.00 },
-    { name: "Candil Imperial 9 Luces (Oro 24k, Spectra, Ø48cm)", price: 19446.00 },
-    { name: "Candil Imperial 12 Luces (Oro 24k, Spectra, Ø75cm)", price: 42128.00 },
-    { name: "Arbotante Imperial (Oro 24k, Spectra, 2 luces)", price: 5510.00 },
-    { name: "Candil Italiano (Oro 24k, Spectra, 6 luces, Ø50cm)", price: 19588.00 },
-    { name: "Arbotante Italiano (Oro 24k, Spectra, 2 luces)", price: 6321.00 },
-    { name: "Candil Carrusel (Oro 24k, 4 luces, Ø35cm)", price: 17110.00 },
-    { name: "Plafón Cerius 6 Luces (Oro 24k, Spectra, Ø38cm)", price: 16730.00 },
-    { name: "Plafón Cerius 12 Luces (Oro 24k, 48x78cm)", price: 33225.00 },
-    { name: "Plafón Perla Ø25cm (Oro 24k, Spectra, 3 luces)", price: 6780.00 },
-    { name: "Plafón Perla Ø30cm (Oro 24k, Spectra, 3 luces)", price: 8661.00 },
-    { name: "Plafón Corazones (Oro 24k, Spectra, 10 luces, Ø60cm)", price: 21390.00 },
-    { name: "Plafón Doble Arillo Reina (Oro 24k, 6 luces, Ø62cm)", price: 24766.00 },
-    { name: "Plafón Canasta (Oro 24k, Spectra, 3 luces, Ø40cm)", price: 6125.00 },
-    { name: "Arbotante Canasta (Oro 24k, 2 luces, Ø35cm)", price: 4134.00 },
-    { name: "Candil Flores (Oro 24k, Spectra, 4 luces, Ø40cm)", price: 10440.00 },
-    { name: "Arbotante Flores (Oro 24k, Spectra, 1 luz)", price: 2320.00 },
-    { name: "Plafón Hoja (Pavonado, Spectra, 3 luces, 30cm)", price: 8763.00 },
-    { name: "Plafón Rectangular (Oro 24k, Spectra, 6 luces, 90x30cm)", price: 23179.00 },
-    { name: "Lámpara de Mesa Corona Rombo (Oro 24k, Spectra, Ø11cm)", price: 4350.00 },
-    { name: "Lámpara de Mesa Señorial (Oro 24k, Spectra, 8 luces, Ø30cm)", price: 17530.00 },
-  ],
-  "Candiles · Alabastro y Austriaco Scholler": [
-    { name: "Candil Medal (Alabastro rústico, 6+2 luces, pieza única)", price: 35951.88 },
-    { name: "Plafón Alabastro Rústico (pieza única)", price: 27245.00 },
-    { name: "Plafón Güero (Alabastro clásico, pieza única)", price: 21431.58 },
-    { name: "Plafón Cuadro Níquel Contemporáneo (Alabastro blanco)", price: 31636.69 },
-    { name: "Arbotante Alabastro Beige (pieza única)", price: 2586.00 },
-    { name: "Arbotante Alabastro Blanco Pirámide (pieza única)", price: 2086.00 },
-    { name: "Arbotante Alabastro Blanco (pieza única)", price: 2585.64 },
-    { name: "Plafón Níquel Alabastro Contemporáneo (2 luces)", price: 15080.58 },
-    { name: "Candil Versalles Scholler (Oro 24k, 10+5 luces, Ø80cm)", price: 29014.00 },
-    { name: "Arbotante Versalles Scholler 1 Luz (Ø30cm)", price: 2397.00 },
-    { name: "Arbotante Versalles Scholler 2 Luces (Ø30cm)", price: 3612.00 },
-    { name: "Candil Lord Scholler 6 Luces (Ø90cm)", price: 12930.00 },
-    { name: "Candil Lord Scholler 6+3 Luces (Ø90cm)", price: 17908.00 },
-    { name: "Candil Cuadro Scholler (Oro 24k, 6 luces, Ø60cm)", price: 14268.00 },
-    { name: "Candil Corsega Scholler (Oro 24k, 6 luces, Ø60cm)", price: 12261.00 },
-    { name: "Arbotante Corsega Scholler (Oro 24k, 3 luces, Ø30cm)", price: 4295.00 },
-    { name: "Candil Galery Scholler (Oro 24k, 8 luces, Ø90cm)", price: 26274.00 },
-    { name: "Candil B.2 (Oro 24k, Scholler, 5 luces, económico)", price: 19439.00 },
-    { name: "Candil Lord Dorado Scholler (Oro 24k, 8 luces)", price: 15766.00 },
-  ],
-  "Candiles · Cristal Italiano": [
-    { name: "Candil Ma. Teresa Hoja c/Canopé (6 luces, Ø65cm)", price: 6300.00 },
-    { name: "Candil Ma. Teresa Hoja 8/L c/Canopé (Ø60cm)", price: 7860.00 },
-    { name: "Candil Ma. Teresa Hoja 8/L", price: 7070.00 },
-    { name: "Candil Ma. Teresa Hoja 10/L", price: 9282.00 },
-    { name: "Candil Ma. Teresa Hoja 12/L (Ø75cm)", price: 10677.00 },
-    { name: "Candil Ma. Teresa Hoja 10+5/L", price: 13914.00 },
-    { name: "Candil Primavera 3/L (Ø40cm)", price: 3504.20 },
-    { name: "Candil Primavera 4/L (Ø45cm)", price: 4153.00 },
-    { name: "Candil Primavera 6/L (Ø50cm)", price: 5689.00 },
-    { name: "Candil Primavera 8/L", price: 6355.00 },
-    { name: "Candil Primavera 12/L", price: 9598.00 },
-    { name: "Candil Primavera 12+6/L (Ø75cm)", price: 14934.00 },
-    { name: "Arbotante Primavera 1/L", price: 1587.00 },
-    { name: "Arbotante Primavera 2/L", price: 2007.00 },
-    { name: "Candil Auris Hoja 10/L (Ø70cm)", price: 7929.00 },
-    { name: "Plafón Estrella Tramo 30cm 3/L", price: 3526.00 },
-    { name: "Plafón Estrella Tramo 40cm 6/L", price: 5164.00 },
-    { name: "Candil Rombo 62cm 7/L (Ø70cm)", price: 6854.00 },
-    { name: "Candil Marqueza 6/L (Ø60cm)", price: 8963.00 },
-    { name: "Candil Marqueza 8/L (Ø70cm)", price: 12027.00 },
-    { name: "Plafón Marqueza Oval 6/L (60x40cm)", price: 8963.00 },
-    { name: "Plafón Marqueza Guitarra 4/L (Ø40cm)", price: 5341.00 },
-    { name: "Candil Versalles 6 Luces (Ø62x45cm)", price: 11868.00 },
-    { name: "Candil Versalles 16 Luces (Ø1.04m)", price: 38479.00 },
-    { name: "Candil Piña de Óvalos 8 Luces (Ø60cm)", price: 6231.52 },
-    { name: "Candil Princesa 36cm 6/L", price: 7446.00 },
-    { name: "Plafón Doble Arillo Tramo 16'' 3/L", price: 5608.00 },
-    { name: "Plafón Doble Arillo Tramo 18'' 6/L", price: 6302.00 },
-    { name: "Plafón Piña Tramo 8'' 2/L", price: 1760.00 },
-    { name: "Plafón Piña Tramo 12'' 3/L", price: 3320.00 },
-    { name: "Plafón Piña Tramo 14'' 3/L", price: 4081.00 },
-    { name: "Plafón Piña Tramo 16'' 6/L", price: 4895.00 },
-    { name: "Plafón Piña Tramo 18'' 6/L", price: 5503.00 },
-    { name: "Plafón Piña Tramo 23'' 8/L", price: 7196.00 },
-    { name: "Plafón Palma Tramo 35cm 4/L", price: 4160.00 },
-    { name: "Plafón Palma Tramo 40cm 3/L", price: 5164.00 },
-    { name: "Plafón Duquesa Tramo Doble Arillo 12/L", price: 6607.00 },
-    { name: "Plafón Especial Ø27cm 3 luces", price: 2527.00 },
-    { name: "Plafón Especial Ø33cm 3 luces", price: 3083.00 },
-    { name: "Plafón Especial Ø38cm 3 luces", price: 3820.00 },
-    { name: "Plafón Especial Ø44cm 4 luces", price: 4734.00 },
-    { name: "Candil Bronce 8/L (Ø70cm)", price: 15189.04 },
-    { name: "Candil Bronce 12/L", price: 22593.00 },
-    { name: "Candil Artiaga (5+5 luces, Ø70cm)", price: 32291.00 },
-  ],
-  "Deck y Muro Exterior WPC": [
-    { name: "Deck Comercial WPC Teak/IPE (caja 1.276 m²)", coverage: 1.276, priceM2: 1584.06, priceBox: 1837.51, labM2: 869.00, labBox: 1108.84 },
-    { name: "Deck Residencial WPC (Light Gray/Teak/Maple/Wenge, caja 1.276 m²)", coverage: 1.276, priceM2: 1330.69, priceBox: 1543.60, labM2: 730.00, labBox: 931.48 },
-    { name: "Tornillo Acero Inoxidable Deck", price: 4.98, lab: 3.00 },
-    { name: "Tornillo Negro Deck", price: 4.98, lab: 3.00 },
-    { name: "Clip Acero Deck", price: 11.60, lab: 7.00 },
-    { name: "Clip Plástico Deck", price: 4.98, lab: 3.00 },
-    { name: "Clip Inicio Deck", price: 11.60, lab: 7.00 },
-    { name: "WPC Lambrín Exterior (5 colores, caja 2.28 m²)", coverage: 2.28, priceM2: 2198.57, priceBox: 2550.34, labM2: 675.00, labBox: 1539.00 },
-    { name: "Ángulo Muro Exterior WPC (5 colores)", price: 477.26, lab: 288.00 },
-    { name: "Wall Cladding (Hickory/Tasmania Oak/Merbau Oak, caja 4.019 m²)", coverage: 4.019, priceM2: 2440.11, priceBox: 2830.53, labM2: 425.00, labBox: 1708.08 },
-    { name: "Ángulo Wall Cladding", price: 59.66, lab: 36.00 },
-    { name: "Perfil Plano Wall Cladding", price: 18.22, lab: 11.00 },
-    { name: "Viga Exterior Teak (ml)", price: 339.72, lab: 205.00 },
-    { name: "Tapa Viga Exterior Teak", price: 53.02, lab: 32.00 },
-    { name: "Viga Interior 100x50 (Bahía/São Paulo/Brasilia/Rio, ml)", price: 111.02, lab: 67.00 },
-    { name: "Viga Interior 50x50 (Bahía/São Paulo/Brasilia/Rio, ml)", price: 67.94, lab: 41.00 },
-    { name: "Soporte Giratorio Viga (set 4 pzas)", price: 74.58, lab: 45.00 },
-  ],
-  "Muro Interior y Placas PVC/PU": [
-    { name: "WPC Muro Interior Serie Clásica (8 colores, caja 6.496 m²)", coverage: 6.496, priceM2: 1716.80, priceBox: 1991.49, labM2: 185.00, labBox: 1201.76 },
-    { name: "WPC Muro Interior Serie Nueva (6 colores, caja 6.496 m²)", coverage: 6.496, priceM2: 1809.60, priceBox: 2099.14, labM2: 195.00, labBox: 1266.72 },
-    { name: "Ángulo Interior WPC (12 colores)", price: 94.46, lab: 57.00 },
-    { name: "Clip-M WPC Muro Interior", price: 2.16, lab: 1.30 },
-    { name: "Rocca PU Piedra (Black/Gray, 0.72 m²/pza)", price: 298.28, lab: 180.00, m2PerPza: 0.72 },
-    { name: "Réplica PU Tronco Oak Virginia (1.44 m²/pza)", price: 2266.98, lab: 1368.00, m2PerPza: 1.44 },
-    { name: "Réplica PU Piedra Oak Cascade (1.44 m²/pza)", price: 1479.50, lab: 892.80, m2PerPza: 1.44 },
-    { name: "PVC Texturizada Madera (7 tonos, 2.977 m²/pza)", price: 2067.05, lab: 1247.36, m2PerPza: 2.977 },
-    { name: "PVC Madera Digital (5 tonos, 2.977 m²/pza)", price: 2067.05, lab: 1247.36, m2PerPza: 2.977 },
-    { name: "PVC Mármol Digital (6 tonos, 2.977 m²/pza)", price: 1869.72, lab: 1128.28, m2PerPza: 2.977 },
-    { name: "PVC Mármol Digital 2 (5 tonos, 2.977 m²/pza)", price: 1869.72, lab: 1128.28, m2PerPza: 2.977 },
-    { name: "PVC Piedra Digital (5 tonos, 2.977 m²/pza)", price: 2363.05, lab: 1425.98, m2PerPza: 2.977 },
-    { name: "PVC Espejo / Metal / Espejo Dorado (2.977 m²/pza)", price: 2762.66, lab: 1667.12, m2PerPza: 2.977 },
-    { name: "PVC Tapiz Acanalado (4 modelos, 1.80 m²/pza)", price: 522.00, lab: 315.00, m2PerPza: 1.80 },
-    { name: "PVC Tapiz Glossy (10 modelos, 2.88 m²/pza)", price: 954.52, lab: 576.00, m2PerPza: 2.88 },
-    { name: "PVC Tapiz Matte (7 modelos, 2.88 m²/pza)", price: 1193.14, lab: 720.00, m2PerPza: 2.88 },
-    { name: "PVC Tapiz Espejo Agua/Metal (2.88 m²/pza)", price: 1551.08, lab: 936.00, m2PerPza: 2.88 },
-    { name: "PVC Tapiz Espejo Dorado (2.88 m²/pza)", price: 1670.40, lab: 1008.00, m2PerPza: 2.88 },
-    { name: "Revestimiento Flexible (6 modelos, 0.54 m²/pza)", price: 275.62, lab: 166.32, m2PerPza: 0.54 },
-    { name: "Panel PVC Interior (5 modelos, 0.84 m²/pza)", price: 77.95, lab: 47.04, m2PerPza: 0.84 },
-    { name: "Panel PVC Laminado Madera (3 modelos, 0.84 m²/pza)", price: 96.05, lab: 57.96, m2PerPza: 0.84 },
-    { name: "Panel 3D Blanco (14 diseños, 0.25 m²/pza)", price: 51.38, lab: 31.00, m2PerPza: 0.25 },
-    { name: "Panel 3D Negro (5 diseños, 0.25 m²/pza)", price: 57.18, lab: 34.50, m2PerPza: 0.25 },
-    { name: "Panel 3D Gris (6 diseños, 0.25 m²/pza)", price: 59.24, lab: 35.75, m2PerPza: 0.25 },
-    { name: "Panel 3D Oro (6 diseños, 0.25 m²/pza)", price: 102.32, lab: 61.75, m2PerPza: 0.25 },
-    { name: "Panel 3D Tipo Madera (4 diseños, 0.25 m²/pza)", price: 70.42, lab: 42.50, m2PerPza: 0.25 },
-    { name: "Panel Metálico Autoadherible (6 modelos, por caja)", price: 488.86, lab: 295.00 },
-    { name: "Panel Vinílico 3D Azulejo (24 diseños, 0.093 m²/pza)", price: 25.59, lab: 15.44, m2PerPza: 0.093 },
-    { name: "Panel XPC 3D (19 diseños, 0.09 m²/pza)", price: 13.57, lab: 8.19, m2PerPza: 0.09 },
-    { name: "Ángulos y Perfiles Aluminio (negro/plateado)", price: 91.14, lab: 55.00 },
-  ],
-  "Pisos Laminados y Vinílicos": [
-    { name: "Piso Laminado Magnus Res. al Agua (5 colores, caja 3.155 m²)", coverage: 3.155, priceM2: 1316.09, priceBox: 1526.66, labM2: 292.00, labBox: 921.26 },
-    { name: "Piso Laminado Splash Res. al Agua (4 colores, caja 2.402 m²)", coverage: 2.402, priceM2: 758.34, priceBox: 879.67, labM2: 221.00, labBox: 530.84 },
-    { name: "Piso Laminado Shades Vintage (4 colores, caja 2.669 m²)", coverage: 2.669, priceM2: 686.31, priceBox: 796.12, labM2: 180.00, labBox: 480.42 },
-    { name: "Piso Laminado Aspen Vintage (4 colores, caja 1.979 m²)", coverage: 1.979, priceM2: 548.47, priceBox: 636.23, labM2: 194.00, labBox: 383.93 },
-    { name: "Piso Laminado Heritage Vintage (5 colores, caja 1.759 m²)", coverage: 1.759, priceM2: 726.21, priceBox: 842.40, labM2: 289.00, labBox: 508.35 },
-    { name: "Piso Laminado Evoke Select (3 colores, caja 2.362 m²)", coverage: 2.362, priceM2: 671.49, priceBox: 778.93, labM2: 199.00, labBox: 470.04 },
-    { name: "Piso Laminado Teruel Select (Alcañiz/Calanda/Utrillas/Ternasco/Gudar, caja 1.929 m²)", coverage: 1.929, priceM2: 479.50, priceBox: 556.22, labM2: 174.00, labBox: 335.65 },
-    { name: "Piso Laminado Mirage Select (2 colores, caja 2.246 m²)", coverage: 2.246, priceM2: 1013.91, priceBox: 1176.14, labM2: 316.00, labBox: 709.74 },
-    { name: "Piso Laminado Diamond Select Clásico (3 colores, caja 2.669 m²)", coverage: 2.669, priceM2: 606.24, priceBox: 703.24, labM2: 159.00, labBox: 424.37 },
-    { name: "Piso Laminado Country Limited Clásico (4 colores, caja 2.669 m²)", coverage: 2.669, priceM2: 598.61, priceBox: 694.39, labM2: 157.00, labBox: 419.03 },
-    { name: "Piso Laminado Prof. Series 1 (4 colores, caja 2.669 m²)", coverage: 2.669, priceM2: 602.43, priceBox: 698.82, labM2: 158.00, labBox: 421.70 },
-    { name: "Piso Laminado Prof. Series 2 (2 colores, caja 2.669 m²)", coverage: 2.669, priceM2: 587.19, priceBox: 681.14, labM2: 154.00, labBox: 411.03 },
-    { name: "Piso Laminado Prof. Series 3 (7 colores, caja 2.669 m²)", coverage: 2.669, priceM2: 617.69, priceBox: 716.52, labM2: 162.00, labBox: 432.38 },
-    { name: "Piso Vinílico Herringbone SPC (Caramel/Moka, caja 1.875 m²)", coverage: 1.875, priceM2: 934.83, priceBox: 1084.40, labM2: 349.00, labBox: 654.38 },
-    { name: "Piso Vinílico Forest SPC (6 colores, caja 2.462 m²)", coverage: 2.462, priceM2: 1209.90, priceBox: 1403.48, labM2: 344.00, labBox: 846.93 },
-    { name: "Piso Vinílico Concrete SPC (2 colores, caja 2.256 m²)", coverage: 2.256, priceM2: 1057.10, priceBox: 1226.24, labM2: 328.00, labBox: 739.97 },
-    { name: "Piso Vinílico Max SPC (6 colores, caja 2.225 m²)", coverage: 2.225, priceM2: 950.39, priceBox: 1102.45, labM2: 299.00, labBox: 665.27 },
-    { name: "Piso Vinílico Futura SPC (6 colores, caja 2.782 m²)", coverage: 2.782, priceM2: 989.60, priceBox: 1147.94, labM2: 249.00, labBox: 692.72 },
-    { name: "Piso Vinílico Australia WPC+LVT (5 colores, caja 2.60 m²)", coverage: 2.60, priceM2: 1556.29, priceBox: 1805.30, labM2: 419.00, labBox: 1089.40 },
-    { name: "Piso Vinílico Woodstock LVT (12 modelos, caja 3.32 m²)", coverage: 3.32, priceM2: 991.26, priceBox: 1149.86, labM2: 209.00, labBox: 693.88 },
-    { name: "Piso Vinílico Woodstock2 LVT (6 modelos, caja 3.32 m²)", coverage: 3.32, priceM2: 991.26, priceBox: 1149.86, labM2: 209.00, labBox: 693.88 },
-    { name: "Piso Vinílico Woodlane LVT (6 modelos, caja 4.89 m²)", coverage: 4.89, priceM2: 1250.44, priceBox: 1450.51, labM2: 179.00, labBox: 875.31 },
-    { name: "Piso Vinílico Urbana LVT (7 modelos, caja 4.894 m²)", coverage: 4.894, priceM2: 1041.73, priceBox: 1208.41, labM2: 149.00, labBox: 729.21 },
-  ],
-  "Madera de Ingeniería y Zoclos": [
-    { name: "Madera Ingeniería Utopía (5 colores, caja 2.888 m²)", coverage: 2.888, priceM2: 2888.00, priceBox: 3350.08, labM2: 700.00, labBox: 2021.60 },
-    { name: "Madera Ingeniería True Toro American Walnut (caja 2.888 m²)", coverage: 2.888, priceM2: 4971.49, priceBox: 5766.93, labM2: 1205.00, labBox: 3480.04 },
-    { name: "Madera Ingeniería True Toro Brushed (caja 2.904 m²)", coverage: 2.904, priceM2: 6256.04, priceBox: 7257.01, labM2: 1508.00, labBox: 4379.23 },
-    { name: "Madera Ingeniería Les Terres European Oak (7 colores, caja 2.888 m²)", coverage: 2.888, priceM2: 3799.79, priceBox: 4407.76, labM2: 921.00, labBox: 2659.85 },
-    { name: "Madera Ingeniería Vitare (4 colores, caja 3.024 m²)", coverage: 3.024, priceM2: 3507.84, priceBox: 4069.09, labM2: 812.00, labBox: 2455.49 },
-    { name: "Madera Ingeniería Loft Life (6 colores, caja 2.743 m²)", coverage: 2.743, priceM2: 1857.40, priceBox: 2154.58, labM2: 474.00, labBox: 1300.18 },
-    { name: "Madera Ingeniería Loft Mate (4 colores, caja 2.743 m²)", coverage: 2.743, priceM2: 1767.27, priceBox: 2050.03, labM2: 451.00, labBox: 1237.09 },
-    { name: "Bambú Horizontal Oscuro (caja 2.212 m²)", coverage: 2.212, priceM2: 2240.44, priceBox: 2598.91, labM2: 709.00, labBox: 1568.31 },
-    { name: "Zoclo Laminado Paloma 4.5cm", price: 31.48, lab: 19.00 },
-    { name: "Zoclo Laminado Plano 6cm", price: 36.46, lab: 22.00 },
-    { name: "Perfil Laminado de Expansión", price: 69.60, lab: 42.00 },
-    { name: "Perfil Laminado de Adaptación", price: 69.60, lab: 42.00 },
-    { name: "Nariz de Escalón Laminada 6cm", price: 92.80, lab: 56.00 },
-    { name: "Cuarto Bocel PVC 16mm", price: 76.22, lab: 46.00 },
-    { name: "Zoclo Plano PVC 14mm", price: 97.78, lab: 59.00 },
-    { name: "Perfil de Adaptación PVC 10mm", price: 80.38, lab: 48.50 },
-    { name: "Perfil de Expansión PVC 7mm", price: 80.38, lab: 48.50 },
-    { name: "Nariz de Escalón PVC 18mm", price: 130.92, lab: 79.00 },
-    { name: "Bajo Suelo Polietileno Laminado 1/16\" (m²)", price: 9.94, lab: 6.00 },
-    { name: "Bajo Suelo Acústico Tekno-Sound Supreme 2mm (m²)", price: 31.48, lab: 19.00 },
-    { name: "Sellador 100% Silicón (Botella)", price: 130.92, lab: 79.00 },
-    { name: "Adhesivo de Montaje (Botella)", price: 174.00, lab: 105.00 },
-    { name: "Adhesivo Base Látex para Piso PVC (3.78 lt)", price: 661.20, lab: 399.00 },
-    { name: "Adhesivo Base Solvente para Piso Bamboo (20 Kg)", price: 3393.82, lab: 2048.00 },
-  ],
-  "Follaje Sintético y Pasto": [
-    { name: "Follaje Sintético Arrayanes (6 colores, caja 3 m²)", coverage: 3, priceM2: 1791.43, priceBox: 2078.06, labM2: 418.00, labBox: 1254.00 },
-    { name: "Follaje Sintético Ciudades (5 colores, caja 3 m²)", coverage: 3, priceM2: 1894.29, priceBox: 2197.38, labM2: 442.00, labBox: 1326.00 },
-    { name: "Follaje Premium (varios modelos, caja 3 m²)", coverage: 3, priceM2: 2627.14, priceBox: 3047.48, labM2: 613.00, labBox: 1839.00 },
-    { name: "Follaje Expandible (Medellín/Bogotá/Barranquilla, 1.07x0.37)", price: 1126.86, lab: 680.00 },
-    { name: "Pasto Deportivo Mono 40mm (varios colores, rollo)", price: 260.18, lab: 157.00 },
-    { name: "Pasto Deportivo Mono 12mm (varios colores, rollo)", price: 386.12, lab: 233.00 },
-    { name: "Pasto Deportivo Fibrilado 20mm (rollo)", price: 235.32, lab: 142.00 },
-    { name: "Pasto Deportivo Fibrilado 30mm (rollo)", price: 238.62, lab: 144.00 },
-    { name: "Pasto Deportivo Fibrilado 40mm (rollo)", price: 243.60, lab: 147.00 },
-    { name: "Pasto Recreativo Bali/Cancún/Bermuda (rollo)", price: 212.12, lab: 128.00 },
-    { name: "Pasto Recreativo Summer/Aca/Aruba (rollo)", price: 180.62, lab: 109.00 },
-    { name: "Malla Sombra (4m²/bolsa)", price: 122.62, lab: 74.00 },
-    { name: "Cinchos (bolsa 100 pzas)", price: 112.68, lab: 68.00 },
-  ],
-  "Cortinas y Persianas": [
-    { name: "Motor Elatio 60 1 Lienzo", price: 12250.99 },
-    { name: "Motor Elatio 60 2 Lienzos", price: 12505.84 },
-    { name: "Motor Elatio 60 Ondulado 1 Lienzo", price: 16716.18 },
-    { name: "Motor Elatio 60 Ondulado 2 Lienzos", price: 16842.85 },
-    { name: "Control Pure 1 Monocanal (Elatio)", price: 1530.62 },
-    { name: "Control Pure 5 Multicanal (Elatio)", price: 3062.75 },
-    { name: "Inteo Estación Central (Elatio)", price: 4561.7 },
-    { name: "Motor Glydea 60 1 Lienzo", price: 28710.81 },
-    { name: "Motor Glydea 60 2 Lienzos", price: 28965.66 },
-    { name: "Motor Glydea 60 Ondulado 1 Lienzo", price: 34706.62 },
-    { name: "Motor Glydea 60 Ondulado 2 Lienzos", price: 35217.83 },
-    { name: "Control Pure 1 Monocanal (Glydea)", price: 1530.62 },
-    { name: "Control Pure 5 Multicanal (Glydea)", price: 3062.75 },
-    { name: "Inteo Estación Central (Glydea)", price: 4561.7 },
-    { name: "Motor Huna 35 1 Lienzo", price: 9802.0 },
-    { name: "Motor Huna 35 2 Lienzos", price: 10179.0 },
-    { name: "Motor Huna 35 Ondulado 1 Lienzo", price: 15607.8 },
-    { name: "Motor Huna 35 Ondulado 2 Lienzos", price: 15834.0 },
-    { name: "Control Huna 1 Monocanal (cortina)", price: 754.0 },
-    { name: "Control Huna 5 Multicanal (cortina)", price: 1508.0 },
-    { name: "Motor LSN 40 1 Lienzo (persiana)", price: 9443.1 },
-    { name: "Motor LSN 40 2 Lienzos (persiana)", price: 11228.57 },
-    { name: "Motor LT50 1 Lienzo (persiana)", price: 16716.18 },
-    { name: "Motor LT50 2 Lienzos (persiana)", price: 19522.57 },
-    { name: "Control Pure 1 Monocanal (persiana)", price: 1530.62 },
-    { name: "Control Pure 5 Multicanal (persiana)", price: 3062.75 },
-    { name: "Inteo Estación Central RTL (Alexa/Google)", price: 4561.7 },
-    { name: "Motor Persiana Huna 40 1 Lienzo", price: 3317.6 },
-    { name: "Motor Persiana Huna 40 2 Lienzos", price: 4524.0 },
-    { name: "Motor Persiana Huna 50 1 Lienzo", price: 4071.6 },
-    { name: "Motor Persiana Huna 50 2 Lienzos", price: 5278.0 },
-    { name: "Control Huna 1 Multicanal (persiana)", price: 754.0 },
-    { name: "Control Huna 5 Multicanal (persiana)", price: 1508.0 },
-    // Persiana enrollable a medida: se cotiza por m² real de la ventana
-    // (ancho x alto), no a precio fijo por pieza — antes esto no servía para
-    // cotizar una medida real de cliente. 4 telas/nivel (2026-09-22):
-    // Precio por m2 con el +40% de margen ya incluido, mas $250 fijos de
-    // instalacion por persiana (no por m2) -- confirmado 2026-09-24.
-    { name: "Persiana Enrollable — Tela Duo Basic", pricePerM2: 530.60, installFee: 250, areaBased: true },
-    { name: "Persiana Enrollable — Tela Good Line", pricePerM2: 628.60, installFee: 250, areaBased: true },
-    { name: "Persiana Enrollable — Tela Celebrity", pricePerM2: 628.60, installFee: 250, areaBased: true },
-    { name: "Persiana Enrollable — Tela Night", pricePerM2: 754.60, installFee: 250, areaBased: true },
-    { name: "Cort. Sencillo 20F111 Hélice 91-183cm Negro", price: 506.69 },
-    { name: "Cort. Sencillo 20F111 Hélice 120-210cm Negro", price: 556.45 },
-    { name: "Cort. Sencillo 20F111 Hélice 183-336cm Negro", price: 680.11 },
-    { name: "Cort. Doble 20F118 Cerrojo 91-183cm Negro", price: 755.51 },
-    { name: "Cort. Doble 20F118 Cerrojo 120-210cm Negro", price: 838.45 },
-    { name: "Cort. Doble 20F118 Cerrojo 183-336cm Negro", price: 1020.92 },
-    { name: "Cort. Sencillo 20F157 Bola 91-183cm Plata", price: 506.69 },
-    { name: "Cort. Sencillo 20F157 Bola 120-210cm Plata", price: 556.45 },
-    { name: "Cort. Sencillo 20F157 Bola 183-336cm Plata", price: 680.11 },
-    { name: "Cort. Doble 20F201 Clásico 91-183cm Negro", price: 755.51 },
-    { name: "Cort. Doble 20F201 Clásico 120-210cm Negro", price: 838.45 },
-    { name: "Cort. Doble 20F201 Clásico 183-336cm Negro", price: 1020.92 },
-    { name: "Cort. Doble 20F240 Manija 91-183cm Plata", price: 755.51 },
-    { name: "Cort. Doble 20F240 Manija 120-210cm Plata", price: 838.45 },
-    { name: "Cort. Doble 20F240 Manija 183-336cm Plata", price: 1020.92 },
-    { name: "Cort. Sencillo 20F248 Enjambre 91-183cm Plata", price: 506.69 },
-    { name: "Cort. Sencillo 20F248 Enjambre 120-210cm Plata", price: 556.45 },
-    { name: "Cort. Sencillo 20F248 Enjambre 183-336cm Plata", price: 680.11 },
-    { name: "Cort. Sencillo 20F260 Cuadros 91-183cm Negro", price: 506.69 },
-    { name: "Cort. Sencillo 20F260 Cuadros 120-210cm Negro", price: 556.45 },
-    { name: "Cort. Sencillo 20F260 Cuadros 183-336cm Negro", price: 680.11 },
-    { name: "Cordón para cortinero (pza)", price: 331.76 },
-    { name: "Bracket Doble a Muro (bolsa 5)", price: 413.19 },
-    { name: "Bracket Sencillo a Muro (bolsa 5)", price: 119.13 },
-    { name: "Bracket a Techo (bolsa 5)", price: 96.51 },
-    { name: "Carro 1 Hoja", price: 60.32 },
-    { name: "Carro 2 Hojas (juego)", price: 108.58 },
-    { name: "Correderas (bolsa 60)", price: 461.45 },
-    { name: "Portapoleas (juego)", price: 111.59 },
-    { name: "Riel de Aluminio (5.80m)", price: 971.15 },
-    { name: "Tensor para Cortinero (juego min. 5)", price: 66.35 },
-    { name: "Unión para cortinero", price: 43.73 },
-    { name: "Bastón de Aluminio (1.20m)", price: 331.76 },
-    { name: "Bastón de Aluminio (2.00m)", price: 696.7 },
-    { name: "Esquinero Curvo (juego)", price: 46.75 },
-    { name: "Tope Final (bolsa 5)", price: 46.75 },
-    { name: "Carro Sistema Ondulado (juego)", price: 82.94 },
-    { name: "Cinta 30mm (mts)", price: 93.5 },
-    { name: "Corredera Sencilla (mts)", price: 165.88 },
-    { name: "Tope Sencillo (ondulado)", price: 93.5 },
-    { name: "Cortinero de Cordón Bracket Doble a Muro (ml)", price: 1020.92 },
-    { name: "Cortinero de Cordón Bracket a Muro (ml)", price: 805.27 },
-    { name: "Cortinero de Cordón Bracket a Techo (ml)", price: 788.68 },
-    { name: "Cortinero Manual Bracket Doble a Muro (ml)", price: 921.39 },
-    { name: "Cortinero Manual Bracket a Muro (ml)", price: 696.7 },
-    { name: "Cortinero Manual Bracket a Techo (ml)", price: 680.11 },
-    { name: "Cortinero Ondulado Bracket Doble a Muro (ml)", price: 1111.4 },
-    { name: "Cortinero Ondulado Bracket a Muro (ml)", price: 895.75 },
-    { name: "Cortinero Ondulado Bracket a Techo (ml)", price: 871.62 },
-    { name: "Cordón (kg)", price: 331.76 },
-    { name: "Ganchos Alfiler (millar)", price: 348.35 },
-    { name: "Rollo con 50 metros de Tarlatana", price: 265.41 },
-  ],
-};
 let activeCatalogTab = Object.keys(CATALOG)[0];
 
 // Precio LAB (costo, antes de margen e IVA): un botón opcional en el Cotizador
@@ -1000,7 +446,7 @@ function addAreaRow(item) {
   const installTxt = item.installFee ? ' + ' + fmtMoney(item.installFee) + ' de instalación' : '';
   wrap.innerHTML = `
     <div class="product-row" style="grid-template-columns: 2fr .9fr .9fr 1fr auto auto; margin-bottom:6px;">
-      <input class="p-name" value="${item.name}" disabled />
+      <input class="p-name" value="${escapeHtml(item.name)}" disabled />
       <input placeholder="Ancho (m)" type="number" min="0" step="0.01" class="p-ancho" oninput="recalcTotals()" />
       <input placeholder="Alto (m)" type="number" min="0" step="0.01" class="p-alto" oninput="recalcTotals()" />
       <input placeholder="$0.00" class="p-import" disabled />
@@ -1178,184 +624,14 @@ function handleFileImport(event) {
   }
 }
 
-// Agrega una fila ya interpretada (de Excel o PDF) a la cotización actual.
-function addImportedRow(item) {
-  addProductRow({
-    name: item.name,
-    qty: item.qty,
-    price: item.price,
-    section: item.section || '',
-    unit: item.unit || '',
-  });
-}
-
-// Abreviaturas de unidad reales que puede traer un PDF antes de la cantidad
-// (ej. "... PZA 3 $150.50"). Antes se adivinaba por longitud de palabra (<=4
-// letras), lo que se comía nombres cortos de producto ("Test", "LED") como si
-// fueran unidad. Con lista fija solo se separa cuando de verdad es una unidad.
-const KNOWN_UNITS = ['pza', 'pzas', 'pz', 'ml', 'm2', 'm²', 'kg', 'hr', 'hrs', 'lote', 'lte', 'jgo', 'par', 'serv', 'un', 'und', 'glb', 'caja', 'cajas', 'rollo', 'mt', 'mts', 'sal'];
-
-// Encabezado de sección dentro de un PDF/Word: antes solo se reconocía si la línea
-// estaba TODO EN MAYÚSCULAS, pero la mayoría de los presupuestos reales usan
-// Título Con Mayúsculas Iniciales (ej. "Herrería", "Plomería", "Cocina Integral") y
-// esas nunca se detectaban. Ahora acepta ambos estilos.
-function looksLikeSectionHeader(lineText) {
-  const t = lineText.trim();
-  if (t.length < 3 || t.length > 40) return false;
-  if (/\d/.test(t)) return false;
-  if (/[.,;:$]/.test(t)) return false;
-  const words = t.split(/\s+/);
-  if (words.length > 5) return false;
-  const isAllCaps = t === t.toUpperCase() && t !== t.toLowerCase();
-  const isTitleCase = words.every(w => /^[A-ZÁÉÍÓÚÑ]/.test(w));
-  return isAllCaps || isTitleCase;
-}
-
-// Busca folio, fecha y nota dentro del texto completo de un documento importado
-// (PDF o Word). Es "mejor esfuerzo": si no encuentra algo, se deja vacío para que
-// se escriba a mano — nunca bloquea la importación.
-function extractDocMeta(fullText) {
-  const meta = {};
-  const folioMatch = fullText.match(/Folio:?\s*(\S+)/i);
-  if (folioMatch) meta.folio = folioMatch[1];
-
-  const fechaMatch = fullText.match(/Fecha:?\s*(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/i);
-  if (fechaMatch) {
-    let [, d, m, y] = fechaMatch;
-    if (y.length === 2) y = '20' + y;
-    meta.fecha = y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
-  }
-
-  const notaMatch = fullText.match(/NOTA:\s*(.+?)(?:\n|\s{2,}[A-ZÁÉÍÓÚÑ]{4,}|SUBTOTAL|$)/i);
-  if (notaMatch) meta.nota = notaMatch[1].trim().slice(0, 300);
-
-  // Para que "subir archivo -> generar" funcione con un solo clic, se detecta
-  // también el cliente y el proyecto si el documento ya trae esos campos
-  // etiquetados (formato típico de un presupuesto Spazio Luce: CLIENTE / OBRA /
-  // DIRECCIÓN-PROYECTO / FECHA en la parte de arriba).
-  const clienteMatch = fullText.match(/CLIENTE:?\s+(.+)/i);
-  if (clienteMatch) meta.cliente = clienteMatch[1].trim().slice(0, 150);
-
-  const proyectoMatch = fullText.match(/(?:DIRECCIÓN\s*\/\s*PROYECTO|PROYECTO|DIRECCION\s*\/\s*PROYECTO):?\s+(.+)/i);
-  if (proyectoMatch) meta.proyecto = proyectoMatch[1].trim().slice(0, 200);
-
-  return meta;
-}
-
-// Lee un PDF (cotización o lista de precios) e intenta reconstruir sus renglones.
-// Es "mejor esfuerzo": reconstruye texto por posición (x,y) de cada página y usa
-// patrones típicos de una tabla de precios (Concepto ... Cant ... $Precio ... $Importe,
-// o Producto ... $Precio). Como los PDFs no tienen columnas reales, siempre puede
-// haber errores — por eso las filas quedan editables antes de generar la cotización.
+// Lee un PDF (cotización o lista de precios) y agrega sus renglones a la
+// cotización. Las filas quedan editables antes de generar.
 async function handlePdfImport(file, event) {
   if (!window.pdfjsLib) { showToast('No se pudo cargar el lector de PDF'); return; }
   try {
-    const buffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
-    let imported = 0;
-    let currentSection = '';
-    let pendingText = '';
-
-    for (let p = 1; p <= pdf.numPages; p++) {
-      const page = await pdf.getPage(p);
-      const content = await page.getTextContent();
-
-      // Agrupa los fragmentos de texto en renglones por posición Y (con tolerancia).
-      const items = content.items.map(it => ({
-        text: it.str,
-        x: it.transform[4],
-        y: Math.round(it.transform[5] / 3) * 3,
-      })).filter(it => it.text.trim());
-
-      pendingText = '';
-      const rowsByY = {};
-      items.forEach(it => {
-        if (!rowsByY[it.y]) rowsByY[it.y] = [];
-        rowsByY[it.y].push(it);
-      });
-
-      const sortedYs = Object.keys(rowsByY).map(Number).sort((a, b) => b - a);
-      sortedYs.forEach(y => {
-        const rowItems = rowsByY[y].sort((a, b) => a.x - b.x);
-        const lineText = rowItems.map(r => r.text).join(' ').replace(/\s+/g, ' ').trim();
-        if (!lineText) return;
-
-        // Detecta encabezados de sección (mayúsculas o Título Con Mayúsculas).
-        if (looksLikeSectionHeader(lineText)) {
-          currentSection = lineText;
-          pendingText = '';
-          return;
-        }
-
-        // La fila de SUMA/TOTAL del propio documento no es un concepto — es el
-        // total que la app ya recalcula sola. Importarla como renglón duplica
-        // el importe real de la cotización.
-        if (/^\s*(SUMA|SUB\s*-?\s*TOTAL|GRAN\s*TOTAL|TOTAL)\b/i.test(lineText)) {
-          pendingText = '';
-          return;
-        }
-
-        // Busca 1 o 2 montos en dólares al final del renglón: P.U. e Importe (o solo Importe/Precio).
-        const moneyMatches = [...lineText.matchAll(/\$\s*([\d,]+\.\d{2})/g)];
-        if (moneyMatches.length === 0) {
-          // El número de fila (" 2", " 3"...) a veces cae en su propio renglón,
-          // separado del texto — no aporta nada, se ignora.
-          if (/^\d+$/.test(lineText)) return;
-          // Sin precio: un concepto largo suele envolver en 2-3 líneas y solo
-          // la última trae UN/CANT/PRECIO — esta línea es probablemente el
-          // inicio real del nombre, se guarda para pegarla a la siguiente
-          // línea que sí traiga precio (si no, se pierde el nombre real y
-          // queda solo la última palabra suelta).
-          pendingText = (pendingText + ' ' + lineText).trim().slice(-300);
-          return;
-        }
-
-        const amounts = moneyMatches.map(m => parseFloat(m[1].replace(/,/g, '')));
-        const firstMoneyIdx = lineText.indexOf(moneyMatches[0][0]);
-        let before = lineText.slice(0, firstMoneyIdx).trim();
-
-        // Intenta separar "Concepto ... UN CANT" (o "Concepto ... CANT UN", ej.
-        // "15 m2") del texto antes del precio. Antes solo se reconocía el orden
-        // UN CANT — con unidades que terminan en dígito como "m2"/"m3" en el
-        // orden CANT UN, el número se cortaba mal (ej. "15 m2" se leía como
-        // cantidad 2, perdiendo el 15 real).
-        let unit = '', qty = 1;
-        const unitQtyMatch = before.match(/(\S+)\s+(\d+(?:\.\d+)?)\s*$/);
-        const qtyUnitMatch = before.match(/(\d+(?:\.\d+)?)\s+(\S+)\s*$/);
-        if (unitQtyMatch && KNOWN_UNITS.includes(unitQtyMatch[1].toLowerCase().replace(/\./g, ''))) {
-          unit = unitQtyMatch[1];
-          qty = parseFloat(unitQtyMatch[2]);
-          before = before.slice(0, unitQtyMatch.index).trim();
-        } else if (qtyUnitMatch && KNOWN_UNITS.includes(qtyUnitMatch[2].toLowerCase().replace(/\./g, ''))) {
-          qty = parseFloat(qtyUnitMatch[1]);
-          unit = qtyUnitMatch[2];
-          before = before.slice(0, qtyUnitMatch.index).trim();
-        } else {
-          const qtyOnlyMatch = before.match(/(\d+(?:\.\d+)?)\s*$/);
-          if (qtyOnlyMatch) {
-            qty = parseFloat(qtyOnlyMatch[1]);
-            before = before.slice(0, qtyOnlyMatch.index).trim();
-          }
-        }
-
-        const name = (pendingText + ' ' + before).replace(/^\d+\s+/, '').trim();
-        pendingText = '';
-        if (!name || name.length < 3) return;
-
-        // Si el renglón trae un solo monto, ese monto YA es el importe total de
-        // la partida (ej. "PISO BASE ... 15 m² ... $10,200.00"), no un precio
-        // unitario — tratarlo como P.U. y multiplicarlo de nuevo por la
-        // cantidad lo infla (15 x $10,200 en vez de $10,200). Con dos montos sí
-        // es una tabla real P.U./Importe, y el segundo es el importe.
-        const importeParsed = amounts.length >= 2 ? amounts[1] : amounts[0];
-        const price = qty > 0 ? round2(importeParsed / qty) : importeParsed;
-
-        addImportedRow({ name, qty, price, unit, section: currentSection });
-        imported++;
-      });
-    }
-
-    showToast(imported > 0 ? `${imported} renglón(es) importados del PDF — revísalos antes de generar` : 'No se detectaron renglones con precio en el PDF');
+    const { rows } = parsePdfPages(await readPdfPages(file));
+    rows.forEach(addProductRow);
+    showToast(rows.length > 0 ? `${rows.length} renglón(es) importados del PDF — revísalos antes de generar` : 'No se detectaron renglones con precio en el PDF');
   } catch (err) {
     console.error('Error al leer el PDF', err);
     showToast('No se pudo leer el PDF. Intenta con el Excel del mismo documento.');
@@ -1363,80 +639,18 @@ async function handlePdfImport(file, event) {
   event.target.value = '';
 }
 
-function handleExcelImport(event) {
+async function handleExcelImport(event) {
   const file = event.target.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function (e) {
-    try {
-      const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, { type: 'array' });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const raw = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', blankrows: false });
-
-      const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-
-      // Un documento real casi siempre trae filas de título arriba (nombre del
-      // negocio, cliente, fecha) antes del encabezado real -- asumir que la
-      // fila 1 siempre es el encabezado dejaba esas columnas sin detectar.
-      // Aquí se busca la fila que de verdad tiene cara de encabezado.
-      let headerRowIdx = raw.findIndex(row =>
-        row.some(c => { const k = norm(c); return k.includes('concepto') || k.includes('producto') || k.includes('nombre') || k.includes('descripcion'); }) &&
-        row.some(c => { const k = norm(c); return k.includes('cant') || k.includes('precio') || k.includes('importe') || k.includes('p.u'); })
-      );
-      if (headerRowIdx === -1) headerRowIdx = 0; // no se encontró: mejor esfuerzo, como antes
-
-      const headerRow = raw[headerRowIdx].map(norm);
-      const col = {
-        name: headerRow.findIndex(k => k.includes('concepto') || k.includes('producto') || k.includes('nombre') || k.includes('descripcion')),
-        qty: headerRow.findIndex(k => k.includes('cant')),
-        price: headerRow.findIndex(k => k.includes('precio') || k.includes('p.u')),
-        importe: headerRow.findIndex(k => k.includes('importe') || k === 'total'),
-        unit: headerRow.findIndex(k => k.replace(/\./g, '') === 'un' || k.includes('unidad')),
-        section: headerRow.findIndex(k => k.includes('seccion') || k.includes('categoria') || k.includes('partida')),
-      };
-
-      let imported = 0;
-      let currentSection = '';
-      for (let i = headerRowIdx + 1; i < raw.length; i++) {
-        const r = raw[i];
-        const nonEmpty = r.filter(c => String(c).trim() !== '');
-        if (nonEmpty.length === 0) continue;
-
-        // La fila de SUMA/TOTAL del propio documento no es un concepto.
-        if (nonEmpty.some(c => /^(SUMA|SUB\s*-?\s*TOTAL|GRAN\s*TOTAL|TOTAL)$/i.test(String(c).trim()))) continue;
-
-        // Una fila con una sola celda de texto y sin números es un encabezado
-        // de sección, no un concepto -- se guarda para las filas que le siguen.
-        const hasNumberOrPrice = nonEmpty.some(c => typeof c === 'number' || /\d/.test(String(c)));
-        if (nonEmpty.length === 1 && !hasNumberOrPrice) { currentSection = String(nonEmpty[0]).trim(); continue; }
-
-        const name = col.name >= 0 ? String(r[col.name] || '').trim() : '';
-        if (!name) continue;
-        const qty = col.qty >= 0 ? (parseFloat(r[col.qty]) || 1) : 1;
-        let price = col.price >= 0 ? (parseFloat(String(r[col.price]).replace(/[^0-9.\-]/g, '')) || 0) : 0;
-        // Si no hay columna de P.U. pero sí de Importe, ese monto es el total
-        // de la fila, no el precio unitario -- se calcula el unitario en
-        // reversa para no inflarlo al multiplicar de nuevo por la cantidad.
-        if (col.price < 0 && col.importe >= 0) {
-          const importeNum = parseFloat(String(r[col.importe]).replace(/[^0-9.\-]/g, '')) || 0;
-          price = qty > 0 ? round2(importeNum / qty) : importeNum;
-        }
-        const unit = col.unit >= 0 ? String(r[col.unit] || '').trim() : '';
-        const section = col.section >= 0 ? String(r[col.section] || '').trim() : currentSection;
-
-        addProductRow({ name, qty, price, section, unit });
-        imported++;
-      }
-
-      showToast(imported > 0 ? `${imported} concepto(s) importados del Excel` : 'No se encontraron filas válidas en el archivo');
-    } catch (err) {
-      console.error('Error al leer el Excel', err);
-      showToast('No se pudo leer el archivo. Revisa el formato.');
-    }
-    event.target.value = '';
-  };
-  reader.readAsArrayBuffer(file);
+  try {
+    const { rows } = parseSheetRows(await readSheetRows(file));
+    rows.forEach(addProductRow);
+    showToast(rows.length > 0 ? `${rows.length} concepto(s) importados del Excel` : 'No se encontraron filas válidas en el archivo');
+  } catch (err) {
+    console.error('Error al leer el Excel', err);
+    showToast('No se pudo leer el archivo. Revisa el formato.');
+  }
+  event.target.value = '';
 }
 
 function addProductRow(prefill) {
@@ -1449,7 +663,7 @@ function addProductRow(prefill) {
   wrap.dataset.section = prefill && prefill.section ? prefill.section : '';
   wrap.dataset.unit = prefill && prefill.unit ? prefill.unit : '';
   wrap.innerHTML = `
-    <input placeholder="Nombre del producto" class="p-name" value="${prefill ? prefill.name : ''}" oninput="recalcTotals()" />
+    <input placeholder="Nombre del producto" class="p-name" value="${prefill ? escapeHtml(prefill.name) : ''}" oninput="recalcTotals()" />
     <input placeholder="1" type="number" min="0" class="p-qty" value="${prefill ? prefill.qty : 1}" oninput="recalcTotals()" />
     <input placeholder="0.00" type="number" min="0" class="p-price" value="${prefill ? prefill.price : ''}" oninput="recalcTotals()" />
     <input placeholder="$0.00" class="p-import" disabled />
@@ -1475,7 +689,7 @@ function addCoverageRow(item) {
   wrap.dataset.dept = item.dept || '';
   wrap.innerHTML = `
     <div class="product-row" style="grid-template-columns: 2fr .9fr .9fr .9fr 1fr auto auto; margin-bottom:6px;">
-      <input class="p-name" value="${item.name}" disabled />
+      <input class="p-name" value="${escapeHtml(item.name)}" disabled />
       <input placeholder="Largo (m)" type="number" min="0" step="0.01" class="p-largo" oninput="onLargoAnchoChange('${id}')" />
       <input placeholder="Ancho (m)" type="number" min="0" step="0.01" class="p-ancho" oninput="onLargoAnchoChange('${id}')" />
       <input placeholder="Cajas" type="number" min="0" step="1" class="p-cajas" oninput="recalcTotals()" />
@@ -1590,10 +804,15 @@ async function prepareNewQuote() {
   renderCatalogTabs();
   await cargarProductoFotos();
   renderCatalogItems();
-  const cotizacionesRes = await sbSelect('cotizaciones');
-  if (cotizacionesRes.__failed) showToast('No se pudo conectar para calcular el folio — revisa tu conexión');
-  const cotizaciones = cotizacionesRes.__failed ? (window.__cotizaciones || []) : cotizacionesRes;
-  document.getElementById('quoteFolio').value = nextFolioNumber(cotizaciones);
+  // Sin conexión y sin caché no se inventa un folio: nextFolioNumber([]) daría
+  // SL-0001 y pisaría uno que ya existe. Se deja vacío y Generar lo exige.
+  const cotizaciones = (await sbSelectRaw('cotizaciones')) || window.__cotizaciones;
+  if (cotizaciones) {
+    document.getElementById('quoteFolio').value = nextFolioNumber(cotizaciones);
+  } else {
+    document.getElementById('quoteFolio').value = '';
+    showToast('No se pudo conectar para calcular el folio — revisa tu conexión y vuelve a abrir el Cotizador');
+  }
   recalcTotals();
 }
 
@@ -1640,6 +859,7 @@ async function generateQuoteImpl() {
   if (rows.length === 0) { showToast('Agrega al menos un producto'); return; }
   const totals = recalcTotals();
   const folio = document.getElementById('quoteFolio').value;
+  if (!folio) { showToast('Falta el folio — revisa tu conexión y vuelve a abrir el Cotizador'); return; }
 
   const quote = {
     folio,
@@ -1688,7 +908,7 @@ async function generateQuoteImpl() {
 
   showToast('Cotización ' + folio + ' generada y guardada');
   await refreshAll();
-  document.getElementById('quoteFolio').value = nextFolioNumber(window.__cotizaciones || []);
+  document.getElementById('quoteFolio').value = nextFolioNumber((window.__cotizaciones || []).concat([{ folio }]));
   const fecha = (inserted[0] && inserted[0].fecha) ? inserted[0].fecha : new Date().toISOString();
   renderRecibo(quote, fecha);
   showView('recibo');
@@ -1721,9 +941,9 @@ function renderReciboProductos(quote, fechaObj, fmt, contactoLine) {
     const subLabel = isCoverage ? `${it.largo}m × ${it.ancho}m = ${it.m2} m²` : isArea ? `${it.ancho}m × ${it.alto}m${it.installFee ? ' + ' + fmtMoney(it.installFee) + ' instalación' : ''}` : '';
     return `<tr>
       <td>
-        <span class="item-name">${it.name}</span>
+        <span class="item-name">${escapeHtml(it.name)}</span>
         ${subLabel ? `<span class="item-sub">${subLabel}</span>` : ''}
-        ${it.foto ? `<div class="item-photo-box"><img src="${it.foto}" alt="${it.name}" /></div>` : ''}
+        ${it.foto ? `<div class="item-photo-box"><img src="${escapeHtml(it.foto)}" alt="${escapeHtml(it.name)}" /></div>` : ''}
       </td>
       <td>${cantLabel}</td>
       <td>${fmtMoney(priceLabel)}</td>
@@ -1741,7 +961,7 @@ function renderReciboProductos(quote, fechaObj, fmt, contactoLine) {
         <h2>COTIZACIÓN</h2>
         <div class="meta">
           Fecha: ${fmt(fechaObj)}<br/>
-          Folio: ${quote.folio}
+          Folio: ${escapeHtml(quote.folio)}
         </div>
       </div>
     </div>
@@ -1749,7 +969,7 @@ function renderReciboProductos(quote, fechaObj, fmt, contactoLine) {
 
     <div class="recibo-info">
       <div>
-        <div><b>Cliente:</b> ${quote.client}</div>
+        <div><b>Cliente:</b> ${escapeHtml(quote.client)}</div>
         <div><b>Contacto:</b> ${contactoLine}</div>
       </div>
       <div>
@@ -1772,7 +992,7 @@ function renderReciboProductos(quote, fechaObj, fmt, contactoLine) {
       <div class="grand-amount">${fmtMoney(quote.total)}</div>
     </div>
 
-    ${quote.note ? `<div class="condiciones" style="margin-top:14px;"><b>NOTA:</b> ${quote.note}</div>` : ''}
+    ${quote.note ? `<div class="condiciones" style="margin-top:14px;"><b>NOTA:</b> ${escapeHtml(quote.note)}</div>` : ''}
 
     <div class="condiciones">
       * Precios preferenciales de Spazio Luce sobre catálogo general.<br/>
@@ -1789,7 +1009,7 @@ function renderReciboProductos(quote, fechaObj, fmt, contactoLine) {
     <div class="recibo-footer">
       <div class="brand">SPAZIO LUCE</div>
       <span>spazioluce.netlify.app</span>
-      <span>${quote.email || 'spazioluce09@gmail.com'}</span>
+      <span>${escapeHtml(quote.email || 'spazioluce09@gmail.com')}</span>
     </div>
   `;
 
@@ -1813,8 +1033,8 @@ function renderRecibopresupuesto(quote, fechaObj, fmt, contactoLine) {
     const rows = sec.items.map((it, i) => `
       <tr>
         <td style="width:26px;color:#999;">${i + 1}</td>
-        <td>${it.name}</td>
-        <td style="width:50px;">${it.unit || '—'}</td>
+        <td>${escapeHtml(it.name)}</td>
+        <td style="width:50px;">${escapeHtml(it.unit || '—')}</td>
         <td style="width:50px;">${it.qty}</td>
         <td style="width:90px;">${fmtMoney(it.price)}</td>
         <td style="width:100px;"><strong>${fmtMoney(it.importe)}</strong></td>
@@ -1839,7 +1059,7 @@ function renderRecibopresupuesto(quote, fechaObj, fmt, contactoLine) {
         <h2>COTIZACIÓN</h2>
         <div class="meta">
           Fecha: ${fmt(fechaObj)}<br/>
-          Folio: ${quote.folio}
+          Folio: ${escapeHtml(quote.folio)}
         </div>
       </div>
     </div>
@@ -1847,8 +1067,8 @@ function renderRecibopresupuesto(quote, fechaObj, fmt, contactoLine) {
 
     <div class="recibo-info">
       <div>
-        <div><b>Proyecto:</b> ${quote.address || '—'}</div>
-        <div><b>Cliente:</b> ${quote.client}</div>
+        <div><b>Proyecto:</b> ${escapeHtml(quote.address || '—')}</div>
+        <div><b>Cliente:</b> ${escapeHtml(quote.client)}</div>
       </div>
       <div>
         <div><b>Contacto:</b> ${contactoLine}</div>
@@ -1858,7 +1078,7 @@ function renderRecibopresupuesto(quote, fechaObj, fmt, contactoLine) {
 
     ${sectionsHtml}
 
-    ${quote.note ? `<div class="condiciones" style="margin-top:14px;"><b>NOTA:</b> ${quote.note}</div>` : ''}
+    ${quote.note ? `<div class="condiciones" style="margin-top:14px;"><b>NOTA:</b> ${escapeHtml(quote.note)}</div>` : ''}
 
     <div class="recibo-totals">
       <div>Subtotal: ${fmtMoney(quote.subtotal)}</div>
@@ -1957,9 +1177,9 @@ function addPresuRow(prefill) {
   wrap.id = id;
   wrap.style.cssText = 'display:grid;grid-template-columns:1.6fr 2fr .7fr .6fr .8fr .9fr auto;gap:8px;align-items:center;';
   wrap.innerHTML = `
-    <input placeholder="Sección" class="ps-section" value="${prefill && prefill.section ? prefill.section : ''}" oninput="recalcPresuTotals()" />
-    <input placeholder="Concepto" class="ps-name" value="${prefill && prefill.name ? prefill.name : ''}" oninput="recalcPresuTotals()" />
-    <input placeholder="Un" class="ps-unit" value="${prefill && prefill.unit ? prefill.unit : ''}" oninput="recalcPresuTotals()" />
+    <input placeholder="Sección" class="ps-section" value="${prefill && prefill.section ? escapeHtml(prefill.section) : ''}" oninput="recalcPresuTotals()" />
+    <input placeholder="Concepto" class="ps-name" value="${prefill && prefill.name ? escapeHtml(prefill.name) : ''}" oninput="recalcPresuTotals()" />
+    <input placeholder="Un" class="ps-unit" value="${prefill && prefill.unit ? escapeHtml(prefill.unit) : ''}" oninput="recalcPresuTotals()" />
     <input placeholder="1" type="number" min="0" class="ps-qty" value="${prefill && prefill.qty ? prefill.qty : 1}" oninput="recalcPresuTotals()" />
     <input placeholder="0.00" type="number" min="0" class="ps-price" value="${prefill && prefill.price ? prefill.price : ''}" oninput="recalcPresuTotals()" />
     <input placeholder="$0.00" class="ps-import" disabled />
@@ -2004,72 +1224,10 @@ function presuSetMetaIfEmpty(id, value) {
 
 async function presuImportExcel(file, event) {
   try {
-    const buffer = await file.arrayBuffer();
-    const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-
-    // Un presupuesto real casi siempre trae 2-4 filas de titulo arriba (nombre
-    // del negocio, cliente, fecha) antes de la fila real de encabezados
-    // (Concepto/Un/Cantidad/P.U./Importe) -- asumir que la fila 1 SIEMPRE es
-    // el encabezado (como hacia antes) dejaba esas columnas sin detectar.
-    // Aqui se busca la fila que de verdad tiene cara de encabezado.
-    const raw = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', blankrows: false });
-    let headerRowIdx = raw.findIndex(row =>
-      row.some(c => { const k = norm(c); return k.includes('concepto') || k.includes('descripcion'); }) &&
-      row.some(c => { const k = norm(c); return k.includes('cant') || k.includes('precio') || k.includes('importe') || k.includes('p.u'); })
-    );
-    if (headerRowIdx === -1) headerRowIdx = 0; // no se encontro: mejor esfuerzo, como antes
-
-    const headerRow = raw[headerRowIdx].map(norm);
-    const col = {
-      name: headerRow.findIndex(k => k.includes('concepto') || k.includes('producto') || k.includes('nombre') || k.includes('descripcion')),
-      qty: headerRow.findIndex(k => k.includes('cant')),
-      price: headerRow.findIndex(k => k.includes('precio') || k.includes('p.u')),
-      importe: headerRow.findIndex(k => k.includes('importe') || k === 'total'),
-      unit: headerRow.findIndex(k => k.replace(/\./g, '') === 'un' || k.includes('unidad')),
-      section: headerRow.findIndex(k => k.includes('seccion') || k.includes('categoria') || k.includes('partida') || k.replace(/\./g, '') === 'part'),
-      folio: headerRow.findIndex(k => k.includes('folio')),
-    };
-
-    let imported = 0;
-    let folioFound = '';
-    let currentSection = '';
-    for (let i = headerRowIdx + 1; i < raw.length; i++) {
-      const r = raw[i];
-      const nonEmpty = r.filter(c => String(c).trim() !== '');
-      if (nonEmpty.length === 0) continue;
-
-      const nameCell = col.name >= 0 ? String(r[col.name] || '').trim() : '';
-
-      // La fila de SUMA/TOTAL del propio documento no es un concepto.
-      if (nonEmpty.some(c => /^(SUMA|SUB\s*-?\s*TOTAL|GRAN\s*TOTAL|TOTAL)$/i.test(String(c).trim()))) continue;
-
-      // Una fila con una sola celda de texto y sin numeros es un encabezado de
-      // seccion (ej. "INSTALACION"), no un concepto -- se guarda para las
-      // filas que le siguen.
-      const hasNumberOrPrice = nonEmpty.some(c => typeof c === 'number' || /\d/.test(String(c)));
-      if (nonEmpty.length === 1 && !hasNumberOrPrice) { currentSection = String(nonEmpty[0]).trim(); continue; }
-
-      if (!nameCell) continue;
-      const qty = col.qty >= 0 ? (parseFloat(r[col.qty]) || 1) : 1;
-      let price = col.price >= 0 ? (parseFloat(String(r[col.price]).replace(/[^0-9.\-]/g, '')) || 0) : 0;
-      // Si no hay columna de P.U. pero si de Importe, ese monto es el total de
-      // la fila, no el precio unitario -- se calcula el unitario en reversa
-      // para no inflarlo al multiplicar por la cantidad (mismo caso que el PDF).
-      if (col.price < 0 && col.importe >= 0) {
-        const importeNum = parseFloat(String(r[col.importe]).replace(/[^0-9.\-]/g, '')) || 0;
-        price = qty > 0 ? round2(importeNum / qty) : importeNum;
-      }
-      const unit = col.unit >= 0 ? String(r[col.unit] || '').trim() : '';
-      const section = col.section >= 0 ? String(r[col.section] || '').trim() : currentSection;
-      if (col.folio >= 0 && !folioFound && r[col.folio]) folioFound = String(r[col.folio]).trim();
-
-      addPresuRow({ name: nameCell, qty, price, section, unit });
-      imported++;
-    }
-    if (folioFound) presuSetMetaIfEmpty('presuFolio', folioFound);
-    showToast(imported > 0 ? `${imported} renglón(es) importados` : 'No se encontraron filas válidas');
+    const { rows, folio } = parseSheetRows(await readSheetRows(file));
+    rows.forEach(addPresuRow);
+    if (folio) presuSetMetaIfEmpty('presuFolio', folio);
+    showToast(rows.length > 0 ? `${rows.length} renglón(es) importados` : 'No se encontraron filas válidas');
   } catch (err) {
     console.error(err);
     showToast('No se pudo leer el Excel.');
@@ -2080,103 +1238,17 @@ async function presuImportExcel(file, event) {
 async function presuImportPdf(file, event) {
   if (!window.pdfjsLib) { showToast('No se pudo cargar el lector de PDF'); return; }
   try {
-    const buffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
-    let imported = 0;
-    let currentSection = '';
-    let pendingText = '';
-    const fullTextLines = [];
+    const { rows, fullText } = parsePdfPages(await readPdfPages(file));
+    rows.forEach(addPresuRow);
 
-    for (let p = 1; p <= pdf.numPages; p++) {
-      const page = await pdf.getPage(p);
-      const content = await page.getTextContent();
-      const items = content.items.map(it => ({
-        text: it.str, x: it.transform[4], y: Math.round(it.transform[5] / 3) * 3,
-      })).filter(it => it.text.trim());
-
-      pendingText = '';
-      const rowsByY = {};
-      items.forEach(it => { (rowsByY[it.y] = rowsByY[it.y] || []).push(it); });
-      const sortedYs = Object.keys(rowsByY).map(Number).sort((a, b) => b - a);
-
-      sortedYs.forEach(y => {
-        const rowItems = rowsByY[y].sort((a, b) => a.x - b.x);
-        const lineText = rowItems.map(r => r.text).join(' ').replace(/\s+/g, ' ').trim();
-        if (!lineText) return;
-        fullTextLines.push(lineText);
-
-        if (looksLikeSectionHeader(lineText)) {
-          currentSection = lineText;
-          pendingText = '';
-          return;
-        }
-
-        // La fila de SUMA/TOTAL del propio documento no es un concepto — es el
-        // total que ya vamos a recalcular solos. Si se importa como renglón,
-        // duplica el importe real.
-        if (/^\s*(SUMA|SUB\s*-?\s*TOTAL|GRAN\s*TOTAL|TOTAL)\b/i.test(lineText)) {
-          pendingText = '';
-          return;
-        }
-
-        const moneyMatches = [...lineText.matchAll(/\$\s*([\d,]+\.\d{2})/g)];
-        if (moneyMatches.length === 0) {
-          // El número de fila (" 2", " 3"...) a veces cae en su propio renglón,
-          // separado del texto — si se acumula tal cual, queda embarrado a la
-          // mitad del nombre. No aporta nada, se ignora.
-          if (/^\d+$/.test(lineText)) return;
-          // Sin precio: en un Excel exportado a PDF, un concepto largo suele
-          // envolver en 2-3 líneas y solo la última trae UN/CANT/P.U./IMPORTE —
-          // esta línea probablemente es el inicio real del concepto, se guarda
-          // para pegarla a la siguiente línea que sí traiga precio.
-          pendingText = (pendingText + ' ' + lineText).trim().slice(-300);
-          return;
-        }
-        const amounts = moneyMatches.map(m => parseFloat(m[1].replace(/,/g, '')));
-        const firstMoneyIdx = lineText.indexOf(moneyMatches[0][0]);
-        let before = lineText.slice(0, firstMoneyIdx).trim();
-
-        // "Concepto ... UN CANT" o "Concepto ... CANT UN" (ej. "15 m2" — con
-        // unidades que terminan en dígito, ese orden se cortaba mal antes).
-        let unit = '', qty = 1;
-        const unitQtyMatch = before.match(/(\S+)\s+(\d+(?:\.\d+)?)\s*$/);
-        const qtyUnitMatch = before.match(/(\d+(?:\.\d+)?)\s+(\S+)\s*$/);
-        if (unitQtyMatch && KNOWN_UNITS.includes(unitQtyMatch[1].toLowerCase().replace(/\./g, ''))) {
-          unit = unitQtyMatch[1];
-          qty = parseFloat(unitQtyMatch[2]);
-          before = before.slice(0, unitQtyMatch.index).trim();
-        } else if (qtyUnitMatch && KNOWN_UNITS.includes(qtyUnitMatch[2].toLowerCase().replace(/\./g, ''))) {
-          qty = parseFloat(qtyUnitMatch[1]);
-          unit = qtyUnitMatch[2];
-          before = before.slice(0, qtyUnitMatch.index).trim();
-        } else {
-          const qtyOnlyMatch = before.match(/(\d+(?:\.\d+)?)\s*$/);
-          if (qtyOnlyMatch) { qty = parseFloat(qtyOnlyMatch[1]); before = before.slice(0, qtyOnlyMatch.index).trim(); }
-        }
-        const name = (pendingText + ' ' + before).replace(/^\d+\s+/, '').trim();
-        pendingText = '';
-        if (!name || name.length < 3) return;
-        // Si el renglón trae un solo monto (lo normal en presupuestos de obra:
-        // "PISO BASE ... 15 m² ... $10,200.00"), ese monto YA es el importe total
-        // de la partida, no un precio unitario — si lo tratamos como P.U. y luego
-        // se multiplica por la cantidad, se infla (15 x $10,200 en vez de $10,200).
-        // Con dos montos sí es la tabla real P.U./Importe de un catálogo.
-        const importeParsed = amounts.length >= 2 ? amounts[1] : amounts[0];
-        const price = qty > 0 ? round2(importeParsed / qty) : importeParsed;
-
-        addPresuRow({ name, qty, price, unit, section: currentSection });
-        imported++;
-      });
-    }
-
-    const meta = extractDocMeta(fullTextLines.join('\n'));
+    const meta = extractDocMeta(fullText);
     if (meta.cliente) presuSetMetaIfEmpty('presuClient', meta.cliente);
     if (meta.proyecto) presuSetMetaIfEmpty('presuProject', meta.proyecto);
     if (meta.folio) presuSetMetaIfEmpty('presuFolio', meta.folio);
     if (meta.fecha) presuSetFechaIfAuto(meta.fecha);
     if (meta.nota) presuSetMetaIfEmpty('presuNote', meta.nota);
 
-    showToast(imported > 0 ? `${imported} renglón(es) importados — revisa antes de generar` : 'No se detectaron renglones con precio');
+    showToast(rows.length > 0 ? `${rows.length} renglón(es) importados — revisa antes de generar` : 'No se detectaron renglones con precio');
   } catch (err) {
     console.error(err);
     showToast('No se pudo leer el PDF.');
@@ -2433,24 +1505,24 @@ async function updateQuoteEstatus(id, estatus) {
 
 function pagoBadgeHtml(q) {
   if (q.pagado) {
-    return `<span class="pill pill-aprobada" title="${q.metodo_pago || 'Pago'} · ${fmtFechaCorta(q.fecha_pago)}">✓ Pagado</span>`;
+    return `<span class="pill pill-aprobada" title="${escapeHtml(q.metodo_pago || 'Pago')} · ${fmtFechaCorta(q.fecha_pago)}">✓ Pagado</span>`;
   }
   return `<button class="btn-ghost-sm" title="Registrar el pago de esta cotización" onclick="openPagoModal(${q.id})">💰 Marcar pagado</button>`;
 }
 
 async function refreshAll() {
-  const cotizacionesRes = await sbSelect('cotizaciones', 'id.desc');
-  const clientesRes = await sbSelect('clientes', 'id.desc');
-  // Si falló la conexión, no se pisa el último caché bueno con una lista
-  // vacía — eso hacía que el Dashboard se viera "en ceros" y que el folio de
-  // la próxima cotización se reiniciara a SL-0001 aunque sí hubiera cotizaciones.
-  if (cotizacionesRes.__failed || clientesRes.__failed) {
+  const cotizacionesRaw = await sbSelectRaw('cotizaciones', 'id.desc');
+  const clientesRaw = await sbSelectRaw('clientes', 'id.desc');
+  // Si falló la conexión no se pisa el último caché bueno con una lista vacía:
+  // el Dashboard se veía "en ceros" y el folio se reiniciaba aunque sí hubiera
+  // cotizaciones.
+  if (!cotizacionesRaw || !clientesRaw) {
     showToast('No se pudo conectar con el servidor — mostrando los últimos datos guardados');
   }
-  const cotizaciones = cotizacionesRes.__failed ? (window.__cotizaciones || []) : cotizacionesRes;
-  const clientes = clientesRes.__failed ? (window.__clientesCache || []) : clientesRes;
-  window.__cotizaciones = cotizaciones;
-  window.__clientesCache = clientes;
+  if (cotizacionesRaw) window.__cotizaciones = cotizacionesRaw;
+  if (clientesRaw) window.__clientesCache = clientesRaw;
+  const cotizaciones = window.__cotizaciones || [];
+  const clientes = window.__clientesCache || [];
 
   document.getElementById('dashboardDate').textContent =
     new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' }) + ' · resumen general del negocio';
@@ -2479,8 +1551,8 @@ async function refreshAll() {
   document.getElementById('dashQuotesList').innerHTML = cotizaciones.length ? cotizaciones.map(q => `
     <div class="quote-row">
       <div>
-        <div class="quote-client">${q.client}</div>
-        <div class="quote-meta">${q.folio} · ${q.items.length} producto(s) · ${fmtMoney(q.total)}</div>
+        <div class="quote-client">${escapeHtml(q.client)}</div>
+        <div class="quote-meta">${escapeHtml(q.folio)} · ${q.items.length} producto(s) · ${fmtMoney(q.total)}</div>
       </div>
       <div class="quote-row-actions">
         ${estatusSelectHtml(q)}
@@ -2493,7 +1565,7 @@ async function refreshAll() {
   `).join('') : '<div class="empty-state">Aún no hay cotizaciones. Genera la primera desde el Cotizador.</div>';
 
   document.getElementById('dashClientsList').innerHTML = clientes.length ? clientes.slice(0, 6).map(c => `
-    <div class="quote-row"><div class="quote-client">${c.name}</div></div>
+    <div class="quote-row"><div class="quote-client">${escapeHtml(c.name)}</div></div>
   `).join('') : '<div class="empty-state">Sin clientes todavía.</div>';
 
   const tbody = document.getElementById('clientsTableBody');
@@ -2506,7 +1578,7 @@ async function refreshAll() {
       const own = cotizaciones.filter(q => q.client.toLowerCase() === c.name.toLowerCase());
       const total = own.reduce((s,q) => s + Number(q.total), 0);
       const last = own.length ? new Date(own[0].fecha).toLocaleDateString('es-MX') : '—';
-      return `<tr class="clickable-row" onclick="openClienteModal(${c.id})"><td>${c.name}</td><td>${c.telefono || '—'}</td><td>${own.length}</td><td>${last}</td><td>${fmtMoney(total)}</td></tr>`;
+      return `<tr class="clickable-row" onclick="openClienteModal(${c.id})"><td>${escapeHtml(c.name)}</td><td>${escapeHtml(c.telefono || '—')}</td><td>${own.length}</td><td>${last}</td><td>${fmtMoney(total)}</td></tr>`;
     }).join('');
   }
 }
@@ -2557,7 +1629,7 @@ function openClienteModal(id) {
         ${own.map(q => `
           <div class="quote-row">
             <div>
-              <div class="quote-client">${q.folio}</div>
+              <div class="quote-client">${escapeHtml(q.folio)}</div>
               <div class="quote-meta">${new Date(q.fecha).toLocaleDateString('es-MX')} · ${fmtMoney(q.total)} · ${q.estatus}${q.pagado ? ' · ✓ Pagado' : ''}</div>
             </div>
             <div class="quote-row-actions">
@@ -2726,8 +1798,8 @@ async function refreshContabilidad() {
   document.getElementById('contaIngresosList').innerHTML = pagadas.length ? pagadas.map(c => `
     <div class="quote-row">
       <div>
-        <div class="quote-client">${c.client}</div>
-        <div class="quote-meta">${c.folio} · ${fmtFechaCorta(c.fecha_pago)} · ${c.metodo_pago || '—'}</div>
+        <div class="quote-client">${escapeHtml(c.client)}</div>
+        <div class="quote-meta">${escapeHtml(c.folio)} · ${fmtFechaCorta(c.fecha_pago)} · ${escapeHtml(c.metodo_pago || '—')}</div>
       </div>
       <div class="quote-row-actions">
         <strong>${fmtMoney(c.monto_pagado != null ? c.monto_pagado : c.total)}</strong>
@@ -2738,8 +1810,8 @@ async function refreshContabilidad() {
   document.getElementById('gastosList').innerHTML = gastosMes.length ? gastosMes.map(g => `
     <div class="quote-row">
       <div>
-        <div class="quote-client">${g.concepto}</div>
-        <div class="quote-meta">${fmtFechaCorta(g.fecha)} · ${g.categoria || '—'}${g.proveedor ? ' · ' + g.proveedor : ''}</div>
+        <div class="quote-client">${escapeHtml(g.concepto)}</div>
+        <div class="quote-meta">${fmtFechaCorta(g.fecha)} · ${escapeHtml(g.categoria || '—')}${g.proveedor ? ' · ' + g.proveedor : ''}</div>
       </div>
       <div class="quote-row-actions">
         <strong>${fmtMoney(g.monto)}</strong>

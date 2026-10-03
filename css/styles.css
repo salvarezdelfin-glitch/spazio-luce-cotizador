@@ -70,7 +70,7 @@
     width: 100%; background: var(--accent); color: #0B0B09; font-weight: 700;
     border-radius: 10px; padding: 12px; font-size: 14px; margin-top: 6px;
   }
-  button:disabled, .btn-loading { opacity: .55; cursor: not-allowed; pointer-events: none; }
+  button:disabled { opacity: .55; cursor: not-allowed; pointer-events: none; }
   .login-err { color: var(--red); font-size: 12px; margin-top: 10px; text-align: center; }
   .setup-note { color: var(--text-secondary); font-size: 12px; text-align: center; margin-top: 20px; }
   .link-btn { background: transparent; border: none; color: var(--accent); font-size: 12px; font-weight: 600; text-decoration: underline; padding: 0; }

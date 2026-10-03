@@ -34,7 +34,7 @@
         <label>Contraseña</label>
         <div class="input-wrap"><input id="loginPass" type="password" placeholder="••••••••" /></div>
       </div>
-      <button class="btn-primary" id="authSubmitBtn" onclick="handleAuthSubmit()">Entrar</button>
+      <button class="btn-primary" id="authSubmitBtn" onclick="handleLogin()">Entrar</button>
       <div id="loginError" class="login-err hidden"></div>
       <div class="setup-note">
         <button type="button" class="link-btn" onclick="showForgotPassword()">¿Olvidaste tu contraseña?</button>
@@ -417,6 +417,8 @@
 
 <div id="toast" class="toast hidden"></div>
 
+<script src="js/catalog.js"></script>
+<script src="js/importers.js"></script>
 <script src="js/app.js"></script>
 <script src="js/guardar-en-carpeta.js" data-app="spazio-luce" data-cliente="client" data-carpeta-sugerida="Documentos\Spazio Luce\02 Clientes y Cotizaciones"></script>
 <script>
