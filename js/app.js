@@ -1004,7 +1004,7 @@ async function generateQuoteImpl() {
     const priceBox = parseFloat(row.dataset.priceBox) || 0;
     const m2 = largo * ancho;
     if (name && cajas > 0) {
-      rows.push({ name, largo, ancho, m2: Number(m2.toFixed(2)), cajas, priceBox, importe: cajas * priceBox, dept: row.dataset.dept || null, foto: productoFotos[name] || null });
+      rows.push({ name, largo, ancho, m2: Number(m2.toFixed(2)), cajas, priceBox, importe: cajas * priceBox, coverage: parseFloat(row.dataset.coverage) || null, dept: row.dataset.dept || null, foto: productoFotos[name] || null });
     }
   });
 
@@ -1278,11 +1278,53 @@ function renderRecibopresupuesto(quote, fechaObj, fmt, contactoLine) {
   wireReciboButtons(quote);
 }
 
+// WhatsApp pide el número con código de país: un celular de México de 10 dígitos va con 52.
+function waPhone(raw) {
+  const d = String(raw || '').replace(/\D/g, '');
+  return d.length === 10 ? '52' + d : d;
+}
+
+// ---- Dar seguimiento: cotizaciones "Enviadas" sin respuesta ----
+const DIAS_SEGUIMIENTO = 3;
+function diasDesde(fecha) {
+  return Math.floor((Date.now() - new Date(fecha).getTime()) / 86400000);
+}
+function renderSeguimiento(cotizaciones) {
+  const panel = document.getElementById('dashSeguimiento');
+  const lista = document.getElementById('dashSeguimientoList');
+  const porSeguir = cotizaciones
+    .filter(c => c.estatus === 'Enviada' && !c.pagado && diasDesde(c.fecha) >= DIAS_SEGUIMIENTO)
+    .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+  panel.classList.toggle('hidden', porSeguir.length === 0);
+  document.getElementById('dashSeguimientoCount').textContent = porSeguir.length ? '(' + porSeguir.length + ')' : '';
+  lista.innerHTML = porSeguir.slice(0, 8).map(q => `
+    <div class="quote-row">
+      <div>
+        <div class="quote-client">${escapeHtml(q.client)}</div>
+        <div class="quote-meta">${escapeHtml(q.folio)} · ${fmtMoney(q.total)} · <span class="pill-seguir">hace ${diasDesde(q.fecha)} días sin respuesta</span></div>
+      </div>
+      <div class="quote-row-actions">
+        ${estatusSelectHtml(q)}
+        <button class="btn-ghost-sm" title="Mandar mensaje de seguimiento por WhatsApp" onclick="seguirPorWhatsApp(${q.id})">WhatsApp</button>
+        <button class="btn-ghost-sm" title="Ver / volver a descargar" onclick="reprintQuote(${q.id})">Ver</button>
+      </div>
+    </div>
+  `).join('') + (porSeguir.length > 8 ? '<div class="empty-state">…y ' + (porSeguir.length - 8) + ' más en la lista de abajo.</div>' : '');
+}
+function seguirPorWhatsApp(id) {
+  const q = (window.__cotizaciones || []).find(c => c.id === id);
+  if (!q) { showToast('No se encontró esa cotización'); return; }
+  const tel = waPhone(q.phone);
+  if (tel.length < 10) { showToast('Esta cotización no tiene un teléfono válido'); return; }
+  const msg = encodeURIComponent(`Hola ${q.client}, ¿pudiste revisar la cotización ${q.folio} de Spazio Luce? Quedo atento a cualquier duda. ¡Gracias!`);
+  window.open(`https://wa.me/${tel}?text=${msg}`, '_blank');
+}
+
 function wireReciboButtons(quote) {
   const waMsg = encodeURIComponent(
     `Hola ${quote.client}, te comparto tu cotización ${quote.folio} de Spazio Luce por un total de ${fmtMoney(quote.total)}. En un momento te mando el PDF. ¡Gracias!`
   );
-  const phoneDigits = (quote.phone || '').replace(/\D/g, '');
+  const phoneDigits = waPhone(quote.phone);
   document.getElementById('reciboWhatsBtn').onclick = () => {
     window.open(`https://wa.me/${phoneDigits}?text=${waMsg}`, '_blank');
   };
@@ -1627,20 +1669,66 @@ async function editQuote(id) {
     document.getElementById('quoteAddress').value = q.address || '';
     document.getElementById('quoteNote').value = q.note || '';
     document.getElementById('quoteFolio').value = q.folio || '';
-    // Los renglones se reconstruyen como productos simples (nombre/cantidad/
-    // precio editables) sin importar si originalmente eran por caja o por m² —
-    // el importe guardado no se pierde, solo se deja de recalcular solo por
-    // medida durante la edición.
-    (q.items || []).forEach(it => {
-      const qty = it.qty != null ? it.qty : (it.cajas != null ? it.cajas : 1);
-      const price = it.price != null ? it.price : (it.priceBox != null ? it.priceBox : round2((Number(it.importe) || 0) / (qty || 1)));
-      addProductRow({ name: it.name, qty, price, dept: it.dept || '' });
-    });
+    // Se respeta el IVA que tenía la cotización (antes, al guardar, siempre se grababa
+    // "IVA incluido" aunque los precios fueran sin IVA).
+    ivaOn = q.iva_incluido !== false;
+    const ivaBtn = document.getElementById('ivaToggleBtn');
+    ivaBtn.textContent = ivaOn ? '🧾 IVA incluido (16%)' : '🧾 Sin IVA';
+    ivaBtn.classList.toggle('lab-active', ivaOn);
+    renderCatalogItems();
+
+    // Cada renglón vuelve a ser del mismo tipo con el que se creó (por caja, por m² o por
+    // pieza) y con el precio que ya tenía guardado — no se reprecia con el catálogo actual.
+    (q.items || []).forEach(it => addSavedItemRow(it));
     recalcTotals();
     document.getElementById('quoteGenerateBtn').textContent = '💾 Guardar cambios';
     document.getElementById('quoteCancelEditBtn').classList.remove('hidden');
   }
   showToast('Editando ' + (q.folio || 'cotización') + ' — los cambios sobrescriben la original');
+}
+
+// Cuánto cubre una caja, para reconstruir un renglón por caja al editar. Las cotizaciones nuevas
+// lo guardan; las viejas no, así que se toma del catálogo, pero solo si con ese dato sale la misma
+// cantidad de cajas que quedó guardada (si la caja cambió de tamaño o el producto cambió de
+// nombre, mejor no inventar nada y dejarlo como renglón simple).
+function coverageForSavedItem(it) {
+  const guardada = Number(it.coverage);
+  if (guardada > 0) return guardada;
+  const depts = (it.dept && CATALOG[it.dept]) ? [it.dept] : Object.keys(CATALOG);
+  for (const d of depts) {
+    const p = CATALOG[d].find(x => x.name === it.name && x.coverage);
+    if (!p) continue;
+    const m2 = Number(it.m2) || 0;
+    if (!m2 || Math.ceil(m2 / p.coverage - 1e-9) === Number(it.cajas)) return p.coverage;
+  }
+  return null;
+}
+
+function addSavedItemRow(it) {
+  const dept = it.dept || '';
+  const ultima = sel => { const r = document.querySelectorAll('#productRows > ' + sel); return r[r.length - 1]; };
+
+  if (it.pricePerM2 != null && it.ancho != null && it.alto != null) {   // persiana: por m²
+    addAreaRow({ name: it.name, pricePerM2: Number(it.pricePerM2), installFee: Number(it.installFee) || 0, dept });
+    const row = ultima('.product-row-area');
+    row.querySelector('.p-ancho').value = it.ancho;
+    row.querySelector('.p-alto').value = it.alto;
+    return;
+  }
+  if (it.cajas != null && it.priceBox != null) {                         // piso, muro, deck: por caja
+    const coverage = coverageForSavedItem(it);
+    if (coverage) {
+      addCoverageRow({ name: it.name, coverage, priceM2: round2(Number(it.priceBox) / coverage), priceBox: Number(it.priceBox), dept });
+      const row = ultima('.product-row-coverage');
+      if (it.largo) row.querySelector('.p-largo').value = it.largo;
+      if (it.ancho) row.querySelector('.p-ancho').value = it.ancho;
+      row.querySelector('.p-cajas').value = it.cajas;
+      return;
+    }
+  }
+  const qty = it.qty != null ? it.qty : (it.cajas != null ? it.cajas : 1);
+  const price = it.price != null ? it.price : (it.priceBox != null ? it.priceBox : round2((Number(it.importe) || 0) / (qty || 1)));
+  addProductRow({ name: it.name, qty, price, dept });
 }
 
 function cancelEditQuote() {
@@ -1706,8 +1794,14 @@ async function refreshAll() {
   const ingresosMes = thisMonth.filter(c => c.estatus === 'Aprobada').reduce((s,c) => s + Number(c.total), 0);
   const pendientes = cotizaciones.filter(c => c.estatus !== 'Aprobada' && c.estatus !== 'Rechazada').length;
 
+  // "Ventas aprobadas" y "cobrado" son cosas distintas: aquí se muestran las dos juntas
+  // (el cobrado usa el mismo cálculo que Contabilidad, por fecha de pago).
+  const cobradoMes = cotizaciones
+    .filter(c => c.pagado && enMes(c.fecha_pago, now.getFullYear(), now.getMonth() + 1))
+    .reduce((s, c) => s + (Number(c.monto_pagado != null ? c.monto_pagado : c.total) || 0), 0);
   const stats = [
-    { label: 'Ingresos del mes (aprobadas)', value: '$' + ingresosMes.toLocaleString('es-MX', {minimumFractionDigits:2}) },
+    { label: 'Ventas aprobadas del mes', value: '$' + ingresosMes.toLocaleString('es-MX', {minimumFractionDigits:2}),
+      sub: 'Cobrado este mes: ' + fmtMoney(cobradoMes) + ' · detalle en Contabilidad' },
     { label: 'Cotizaciones totales', value: cotizaciones.length },
     { label: 'Cotizaciones pendientes', value: pendientes },
     { label: 'Clientes registrados', value: clientes.length },
@@ -1716,8 +1810,11 @@ async function refreshAll() {
     <div class="stat-card">
       <div class="label">${s.label}</div>
       <div class="value">${s.value}</div>
+      ${s.sub ? '<div class="stat-sub">' + s.sub + '</div>' : ''}
     </div>
   `).join('');
+
+  renderSeguimiento(cotizaciones);
 
   document.getElementById('dashQuotesList').innerHTML = cotizaciones.length ? cotizaciones.map(q => `
     <div class="quote-row">
@@ -2113,20 +2210,21 @@ async function refreshReportes() {
     (Array.isArray(c.items) ? c.items : []).forEach(it => {
       const nombre = it.name || 'Sin nombre';
       const importe = Number(it.importe) || 0;
-      const cantidad = it.cajas != null ? Number(it.cajas) : Number(it.qty) || 0;
-      if (!porProducto[nombre]) porProducto[nombre] = { cantidad: 0, importe: 0 };
+      const esM2 = it.cajas == null && it.qty == null && it.m2 != null;
+      const cantidad = it.cajas != null ? Number(it.cajas) : esM2 ? Number(it.m2) || 0 : Number(it.qty) || 0;
+      if (!porProducto[nombre]) porProducto[nombre] = { cantidad: 0, importe: 0, m2: esM2 };
       porProducto[nombre].cantidad += cantidad;
       porProducto[nombre].importe += importe;
     });
   });
   const topProductos = Object.entries(porProducto)
-    .map(([name, v]) => ({ name, cantidad: v.cantidad, importe: round2(v.importe) }))
+    .map(([name, v]) => ({ name, cantidad: round2(v.cantidad), importe: round2(v.importe), m2: v.m2 }))
     .sort((a, b) => b.importe - a.importe)
     .slice(0, 15);
   const maxImporte = Math.max(1, ...topProductos.map(x => x.importe));
   document.getElementById('reportesTopProductos').innerHTML = topProductos.length ? topProductos.map(x => `
     <div class="bar-row">
-      <div class="bar-row-top"><span class="bar-label">${x.name} <span style="color:var(--text-secondary);">(${x.cantidad})</span></span><span class="bar-value">$${x.importe.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span></div>
+      <div class="bar-row-top"><span class="bar-label">${x.name} <span style="color:var(--text-secondary);">(${x.cantidad}${x.m2 ? ' m²' : ''})</span></span><span class="bar-value">$${x.importe.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span></div>
       <div class="bar-track"><div class="bar-fill" style="width:${(x.importe / maxImporte * 100).toFixed(1)}%"></div></div>
     </div>
   `).join('') : '<div class="empty-state">Todavía no hay cotizaciones en este rango.</div>';

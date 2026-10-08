@@ -103,6 +103,11 @@
         <button class="btn-accent-sm" onclick="showView('cotizador')">+ Nueva cotización</button>
       </div>
       <div class="cards-grid" id="statsGrid"></div>
+      <div class="panel hidden" id="dashSeguimiento" style="margin-bottom:18px;">
+        <h3>Dar seguimiento <span id="dashSeguimientoCount"></span></h3>
+        <div class="sub" style="margin:-6px 0 12px;font-size:12px;color:var(--text-secondary);">Cotizaciones enviadas hace 3 días o más que todavía no tienen respuesta.</div>
+        <div id="dashSeguimientoList"></div>
+      </div>
       <div class="panels-grid">
         <div class="panel">
           <h3>Clientes registrados</h3>
