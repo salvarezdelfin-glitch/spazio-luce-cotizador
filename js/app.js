@@ -499,7 +499,7 @@ function catalogRowHtml(p, dept, mostrarCategoria) {
 
 // Búsqueda del catálogo completo: sin acentos, plural/singular y varias palabras en cualquier
 // orden. Primero salen los productos que traen TODAS las palabras en su nombre; después los que
-// coinciden solo porque la categoría las dice (ej. "persiana" -> toda "Cortinas y Persianas");
+// coinciden solo porque la categoría las dice (ej. "persiana" -> toda la categoría "Persianas · …");
 // y si no hay nada de eso, los que traen al menos alguna palabra.
 function searchCatalogList(raw) {
   const words = normalizeText(raw).split(' ').filter(w => w && !QUICKADD_STOPWORDS.includes(w));
@@ -577,14 +577,16 @@ function renderCatalogItems() {
   el.classList.remove('searching');
   const items = CATALOG[activeCatalogTab] || [];
   const fuente = (typeof CATALOG_ACTUALIZADO !== 'undefined') ? CATALOG_ACTUALIZADO[activeCatalogTab] : null;
+  const ayuda = (typeof CATALOG_AYUDA !== 'undefined') ? CATALOG_AYUDA[activeCatalogTab] : null;
+  let nota = '';
   if (fuente) {
     const viejos = items.filter(p => p.sinListaNueva).length;
-    noteEl.innerHTML = '<b>✓ Precios al día</b> · ' + escapeHtml(fuente) + ', ya con nuestra ganancia' +
+    nota = '<b>✓ Precios al día</b> · ' + escapeHtml(fuente) + ', ya con nuestra ganancia' +
       (viejos ? ' · ' + viejos + ' producto(s) ya no vienen en la lista nueva y conservan su <span class="tag-old">precio anterior</span>' : '');
-    noteEl.classList.remove('hidden');
-  } else {
-    noteEl.classList.add('hidden');
   }
+  if (ayuda) nota += (nota ? '<br>' : '') + escapeHtml(ayuda);
+  noteEl.innerHTML = nota;
+  noteEl.classList.toggle('hidden', !nota);
   el.innerHTML = items.length
     ? items.map(p => catalogRowHtml(p, activeCatalogTab, false)).join('')
     : '<div class="catalog-empty">Sin productos en esta categoría.</div>';

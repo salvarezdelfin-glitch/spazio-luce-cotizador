@@ -451,7 +451,33 @@ const CATALOG = {
     { name: "Pasto Deportivo 40mm Fibrilado (m²)", price: 255.20, lab: 154.00 },
     { name: "Pasto Deportivo 12mm Monofilamento Rizado (m²)", price: 406.00, lab: 245.00 },
   ],
-  "Cortinas y Persianas": [
+  "Persianas · Telas (por m²)": [
+    // Persiana enrollable a medida: se cotiza por m² real de la ventana
+    // (ancho x alto), no a precio fijo por pieza — antes esto no servía para
+    // cotizar una medida real de cliente. 4 telas/nivel (2026-09-22):
+    // Precio por m2 con el +40% de margen ya incluido, mas $250 fijos de
+    // instalacion por persiana (no por m2) -- confirmado 2026-09-24.
+    { name: "Persiana Enrollable — Tela Duo Basic", pricePerM2: 530.60, installFee: 250, areaBased: true },
+    { name: "Persiana Enrollable — Tela Good Line", pricePerM2: 628.60, installFee: 250, areaBased: true },
+    { name: "Persiana Enrollable — Tela Celebrity", pricePerM2: 628.60, installFee: 250, areaBased: true },
+    { name: "Persiana Enrollable — Tela Night", pricePerM2: 754.60, installFee: 250, areaBased: true },
+  ],
+  "Persianas · Motores y controles": [
+    { name: "Motor LSN 40 1 Lienzo (persiana)", price: 9443.1 },
+    { name: "Motor LSN 40 2 Lienzos (persiana)", price: 11228.57 },
+    { name: "Motor LT50 1 Lienzo (persiana)", price: 16716.18 },
+    { name: "Motor LT50 2 Lienzos (persiana)", price: 19522.57 },
+    { name: "Control Pure 1 Monocanal (persiana)", price: 1530.62 },
+    { name: "Control Pure 5 Multicanal (persiana)", price: 3062.75 },
+    { name: "Inteo Estación Central RTL (Alexa/Google)", price: 4561.7 },
+    { name: "Motor Persiana Huna 40 1 Lienzo", price: 3317.6 },
+    { name: "Motor Persiana Huna 40 2 Lienzos", price: 4524.0 },
+    { name: "Motor Persiana Huna 50 1 Lienzo", price: 4071.6 },
+    { name: "Motor Persiana Huna 50 2 Lienzos", price: 5278.0 },
+    { name: "Control Huna 1 Multicanal (persiana)", price: 754.0 },
+    { name: "Control Huna 5 Multicanal (persiana)", price: 1508.0 },
+  ],
+  "Cortinas · Motores y controles": [
     { name: "Motor Elatio 60 1 Lienzo", price: 12250.99 },
     { name: "Motor Elatio 60 2 Lienzos", price: 12505.84 },
     { name: "Motor Elatio 60 Ondulado 1 Lienzo", price: 16716.18 },
@@ -472,28 +498,8 @@ const CATALOG = {
     { name: "Motor Huna 35 Ondulado 2 Lienzos", price: 15834.0 },
     { name: "Control Huna 1 Monocanal (cortina)", price: 754.0 },
     { name: "Control Huna 5 Multicanal (cortina)", price: 1508.0 },
-    { name: "Motor LSN 40 1 Lienzo (persiana)", price: 9443.1 },
-    { name: "Motor LSN 40 2 Lienzos (persiana)", price: 11228.57 },
-    { name: "Motor LT50 1 Lienzo (persiana)", price: 16716.18 },
-    { name: "Motor LT50 2 Lienzos (persiana)", price: 19522.57 },
-    { name: "Control Pure 1 Monocanal (persiana)", price: 1530.62 },
-    { name: "Control Pure 5 Multicanal (persiana)", price: 3062.75 },
-    { name: "Inteo Estación Central RTL (Alexa/Google)", price: 4561.7 },
-    { name: "Motor Persiana Huna 40 1 Lienzo", price: 3317.6 },
-    { name: "Motor Persiana Huna 40 2 Lienzos", price: 4524.0 },
-    { name: "Motor Persiana Huna 50 1 Lienzo", price: 4071.6 },
-    { name: "Motor Persiana Huna 50 2 Lienzos", price: 5278.0 },
-    { name: "Control Huna 1 Multicanal (persiana)", price: 754.0 },
-    { name: "Control Huna 5 Multicanal (persiana)", price: 1508.0 },
-    // Persiana enrollable a medida: se cotiza por m² real de la ventana
-    // (ancho x alto), no a precio fijo por pieza — antes esto no servía para
-    // cotizar una medida real de cliente. 4 telas/nivel (2026-09-22):
-    // Precio por m2 con el +40% de margen ya incluido, mas $250 fijos de
-    // instalacion por persiana (no por m2) -- confirmado 2026-09-24.
-    { name: "Persiana Enrollable — Tela Duo Basic", pricePerM2: 530.60, installFee: 250, areaBased: true },
-    { name: "Persiana Enrollable — Tela Good Line", pricePerM2: 628.60, installFee: 250, areaBased: true },
-    { name: "Persiana Enrollable — Tela Celebrity", pricePerM2: 628.60, installFee: 250, areaBased: true },
-    { name: "Persiana Enrollable — Tela Night", pricePerM2: 754.60, installFee: 250, areaBased: true },
+  ],
+  "Cortinas · Cortineros, rieles y accesorios": [
     { name: "Cort. Sencillo 20F111 Hélice 91-183cm Negro", price: 506.69 },
     { name: "Cort. Sencillo 20F111 Hélice 120-210cm Negro", price: 556.45 },
     { name: "Cort. Sencillo 20F111 Hélice 183-336cm Negro", price: 680.11 },
@@ -557,4 +563,12 @@ const CATALOG_ACTUALIZADO = {
   "Pisos Laminados y Vinílicos": "lista Teknostep del 1 de agosto de 2026",
   "Madera de Ingeniería y Zoclos": "lista Teknostep del 1 de agosto de 2026",
   "Follaje Sintético y Pasto": "lista Teknostep del 1 de agosto de 2026",
+};
+
+// Texto de ayuda que se muestra bajo las pestañas de estas categorías.
+const CATALOG_AYUDA = {
+  "Persianas · Telas (por m²)": "Elige la tela y captura el ancho y alto exactos de la ventana: se cobra por m² más la instalación, que va una sola vez por persiana (no por m²). El motor y el control, si los lleva, se agregan aparte en «Persianas · Motores y controles».",
+  "Persianas · Motores y controles": "Motores y controles para persianas. Se cotizan por pieza y se agregan junto con la tela de la persiana.",
+  "Cortinas · Motores y controles": "Motorización para cortinas (Elatio, Glydea y Huna). Se cotiza por pieza.",
+  "Cortinas · Cortineros, rieles y accesorios": "Cortineros por medida, cortineros por metro, rieles, soportes y accesorios para cortinas.",
 };
