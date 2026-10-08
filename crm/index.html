@@ -218,8 +218,9 @@
   "use strict";
 
   var SUPABASE_URL = 'https://smjktuithhvfmexysvkf.supabase.co';
-  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNtamt0dWl0aGh2Zm1leHlzdmtmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUyNTkwODksImV4cCI6MjEwMDgzNTA4OX0.ysy5L4zkOuRBqTwoeCYcvqd7PJ-n1FF-FAyq9vPp2q8';
-  var supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  // Llave publicable: pública por diseño (los datos los protegen Auth + app_users + RLS).
+  var SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_h7YxlJXIADT1827fFx6hyg_jtjmnmGZ';
+  var supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
   var currentAccessToken = null;
 
   var STAGES = [
@@ -250,7 +251,9 @@
 
   // ---------------- Supabase helpers (mismo patrón que el cotizador) ----------------
   function sbHeaders(extra){
-    return Object.assign({ apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (currentAccessToken || SUPABASE_ANON_KEY) }, extra || {});
+    var h = { apikey: SUPABASE_PUBLISHABLE_KEY };
+    if(currentAccessToken) h.Authorization = 'Bearer ' + currentAccessToken;
+    return Object.assign(h, extra || {});
   }
   // Misma validación que el cotizador: la URL se arma con texto, así que el id
   // debe ser un entero y la tabla una de las conocidas (si no, un "1&id=gt.0"

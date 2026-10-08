@@ -9,13 +9,15 @@ let editingQuoteId = null;
 const reciboLogoUri = "assets/logo.jpg";
 
 // Conexión a Supabase: cotizaciones y clientes se guardan aquí, compartidos
-// entre todos los que usan el sistema (tú y tu papá ven lo mismo). El acceso
-// real está protegido por Supabase Auth + una lista blanca de correos
-// (tabla app_users) — el anon key por sí solo ya no puede leer ni escribir
-// nada en clientes/cotizaciones/crm_leads desde que se activó esa RLS.
+// entre todos los que usan el sistema (tú y tu papá ven lo mismo).
+// La llave es la "publishable" (sb_publishable_…): es pública por diseño, va en
+// el navegador de cualquiera que abra la app. Lo que protege los datos NO es
+// esconderla sino Supabase Auth + la lista de correos (tabla app_users) + RLS.
+// Se usa esta y no la "anon" (JWT) porque se puede rotar sola, sin invalidar a
+// las demás apps que comparten este proyecto de Supabase.
 const SUPABASE_URL = 'https://smjktuithhvfmexysvkf.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNtamt0dWl0aGh2Zm1leHlzdmtmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUyNTkwODksImV4cCI6MjEwMDgzNTA4OX0.ysy5L4zkOuRBqTwoeCYcvqd7PJ-n1FF-FAyq9vPp2q8';
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_h7YxlJXIADT1827fFx6hyg_jtjmnmGZ';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 let currentAccessToken = null;
 
 // PostgREST parametriza todo y la app no arma SQL a mano, así que no hay
@@ -38,11 +40,12 @@ function sbOrder(order) {
   return '&order=' + order;
 }
 
+// Con sesión iniciada se manda el token del usuario; sin sesión solo la llave
+// publicable (las llaves nuevas no son JWT, así que no van en Authorization).
 function sbHeaders(extra) {
-  return Object.assign({
-    apikey: SUPABASE_ANON_KEY,
-    Authorization: 'Bearer ' + (currentAccessToken || SUPABASE_ANON_KEY),
-  }, extra || {});
+  const h = { apikey: SUPABASE_PUBLISHABLE_KEY };
+  if (currentAccessToken) h.Authorization = 'Bearer ' + currentAccessToken;
+  return Object.assign(h, extra || {});
 }
 
 // null = falló la conexión; [] = la tabla de verdad está vacía. Quien necesita
@@ -130,13 +133,21 @@ function sanitizeFotoPath(name) {
     .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'producto';
 }
 
+// Mismas reglas que el almacén de Supabase (que las exige de todos modos): solo
+// imágenes comunes y hasta 5 MB. Nada de SVG/HTML: se servirían desde el dominio
+// de Supabase y podrían llevar código. Se valida aquí para avisar con claridad.
+const FOTO_TIPOS = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif' };
+const FOTO_MAX_BYTES = 5 * 1024 * 1024;
+
 async function uploadProductoFoto(productName, file) {
-  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+  const ext = FOTO_TIPOS[file.type];
+  if (!ext) { showToast('Formato no permitido: usa PNG, JPG, WebP o GIF'); return null; }
+  if (file.size > FOTO_MAX_BYTES) { showToast('La foto pesa más de 5 MB: redúcela e inténtalo de nuevo'); return null; }
   const path = 'productos/' + sanitizeFotoPath(productName) + '.' + ext;
   try {
     const uploadRes = await fetch(`${SUPABASE_URL}/storage/v1/object/producto-fotos/${path}`, {
       method: 'POST',
-      headers: sbHeaders({ 'Content-Type': file.type || 'image/jpeg', 'x-upsert': 'true' }),
+      headers: sbHeaders({ 'Content-Type': file.type, 'x-upsert': 'true' }),
       body: file,
     });
     if (!uploadRes.ok) throw new Error('upload: ' + await uploadRes.text());

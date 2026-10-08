@@ -1,1 +1,11 @@
+# Nunca subir llaves ni secretos al repositorio (es público)
+.env
+.env.*
+*.pem
+*.key
+secrets*.json
+service-account*.json
+
+# Local
 .netlify/
+.claude/

@@ -13,8 +13,7 @@ jobs:
         run: |
           status=$(curl -s -o /dev/null -w "%{http_code}" \
             "${{ secrets.SUPABASE_URL }}/rest/v1/reviews?select=id&limit=1" \
-            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}")
+            -H "apikey: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}")
           echo "Supabase respondió HTTP $status"
           if [ "$status" -ge 500 ] || [ "$status" -eq 000 ]; then
             echo "::error::Supabase no respondió correctamente (HTTP $status)"

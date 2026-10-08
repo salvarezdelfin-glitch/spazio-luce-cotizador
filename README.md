@@ -31,14 +31,42 @@ Al pasarse responde HTTP 429. El equipo con sesión iniciada no tiene ese tope. 
 
 **Inyección SQL.** La app nunca arma SQL: todo va por PostgREST con parámetros. Lo único que se arma con texto es la URL, y por eso `sbTable`, `sbId` y `sbOrder` (en `js/app.js` y `crm/index.html`) aceptan solo tablas conocidas, enteros positivos y órdenes con patrón estricto. Las funciones de la base no usan SQL dinámico y tienen `search_path` fijo. La base además rechaza datos fuera de límite en `crm_leads` y `reviews` (longitudes y tamaño del JSON).
 
-**Llaves.** La llave `anon` de `js/app.js` es pública por diseño: lo que protege los datos es RLS, no ocultarla. El anónimo solo puede hacer `INSERT` en `crm_leads`, `INSERT`/`SELECT` en `reviews` y `SELECT` en `producto_fotos`. La llave `service_role`, la de Resend y el secreto de los webhooks no están en el repo: viven en las variables de las Edge Functions y en Vault (`get_app_secret`). Las Edge Functions comparan el secreto en tiempo constante y escapan el texto de los formularios antes de armar el correo.
+**Llaves y secretos:** ver la sección "Llaves y secretos" más abajo. Los datos no los protege esconder la llave del navegador sino Auth + `app_users` + RLS.
 
 **Pendiente en el panel de Supabase (no se puede hacer desde el código):**
 1. Authentication → desactivar "Allow new users to sign up" (hoy cualquiera puede crear una cuenta, aunque sin acceso a datos).
 2. Authentication → Rate Limits: revisar los topes de inicio de sesión y de correos.
 3. Authentication → Password security: activar "Leaked password protection".
+4. Authentication → URL Configuration: que "Site URL" y "Redirect URLs" sean solo `https://salvarezdelfin-glitch.github.io/spazio-luce-cotizador/` (quitar las que no se usen). Es a donde viaja el enlace de recuperar contraseña.
 
 **Mantenerlo vivo.** `.github/workflows/keep-supabase-alive.yml` consulta `reviews` (pública) cada 3 días; no usa tablas privadas a propósito.
+
+## Llaves y secretos
+
+| Qué | Dónde vive | ¿Es secreto? | Si se filtra |
+|---|---|---|---|
+| Llave publicable `sb_publishable_…` | `js/app.js`, `crm/index.html`, sitio web | No. Es pública por diseño: va en el navegador de cualquiera. | Nada urgente; se puede rotar en Supabase → Settings → API Keys. |
+| Llave `anon` (JWT antigua) | Ya no la usa el cotizador; la siguen usando otras apps del mismo proyecto de Supabase. | No | No desactivarla hasta migrar esas apps. |
+| `service_role` de Supabase | Solo dentro de las Edge Functions (variable de entorno de Supabase). | **Sí: acceso total a todo.** | Rotarla de inmediato en Supabase → Settings → API Keys. Nunca va en el repo ni en el navegador. |
+| Llave de Resend | Vault de Supabase (`resend_api_key`). | Sí | Crear otra en Resend, borrar la vieja y guardar la nueva con `vault.update_secret`. |
+| Secreto de los webhooks | Vault de Supabase (`webhook_secret`). | Sí | Rotar con el SQL de abajo. |
+| Contraseñas de usuarios | Supabase Auth (con hash). | Sí | Cambiarla desde "¿Olvidaste tu contraseña?". |
+
+**Rotar el secreto de los webhooks** (no rompe nada: los triggers, el cron y las funciones lo leen de Vault cada vez):
+
+```sql
+select vault.update_secret(
+  (select id from vault.decrypted_secrets where name = 'webhook_secret'),
+  replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''));
+```
+
+Última rotación: 2026-10-08. Conviene repetirla cada 6 meses o ante cualquier sospecha.
+
+**Reglas del repositorio (es público):**
+- Nada de secretos en el código. GitHub tiene activados el escaneo de secretos y la protección al subir, y `.gitignore` bloquea `.env`, `*.key` y `*.pem`. El historial completo se revisó el 2026-10-08: solo contiene la llave pública.
+- Si una llave secreta se sube por error: primero **rotarla**, después limpiar. Borrarla del historial no basta, desde que fue pública se considera comprometida.
+- El almacén `producto-fotos` solo acepta PNG, JPG, WebP y GIF de hasta 5 MB (nada de SVG/HTML). `respaldos` solo acepta JSON y no es público.
+
 
 ## Publicar cambios
 
