@@ -461,44 +461,145 @@ function setCatalogTab(cat) {
   renderCatalogTabs();
   renderCatalogItems();
 }
-function renderCatalogItems() {
-  const search = (document.getElementById('catalogSearch').value || '').toLowerCase();
-  const items = (CATALOG[activeCatalogTab] || []).filter(p => p.name.toLowerCase().includes(search));
-  const el = document.getElementById('catalogItems');
-  el.innerHTML = items.length ? items.map((p, i) => {
-    const noLab = useLabPrice && (p.coverage ? p.labBox == null : p.lab == null);
-    let priceLabel;
-    if (p.coverage) {
-      const cov = effectiveCoveragePrices(p);
-      priceLabel = fmtMoney(cov.priceM2) + '/m² · caja cubre ' + p.coverage + ' m²';
-    } else if (p.areaBased) {
-      priceLabel = fmtMoney(effectiveAreaPrice(p)) + '/m²' + (p.installFee ? ' + ' + fmtMoney(effectiveInstallFee(p)) + ' instalación' : '') + ' · se corta a la medida exacta';
-    } else {
-      const eff = effectiveSimplePrice(p);
-      priceLabel = eff ? fmtMoney(eff) + (p.m2PerPza ? '/pza · cubre ' + p.m2PerPza + ' m²' : '') : 'sin precio';
-    }
-    if (noLab) priceLabel += ' (sin LAB)';
-    const fotoUrl = productoFotos[p.name];
-    const fotoBtn = fotoUrl
-      ? `<button class="catalog-photo-thumb" title="Cambiar foto: pega una imagen copiada o elige un archivo" onclick="pickProductoFoto('${p.name.replace(/'/g, "\\'")}')"><img src="${fotoUrl}" alt="" /></button>`
-      : `<button class="catalog-photo-btn" title="Agregar foto: pega una imagen copiada o elige un archivo" onclick="pickProductoFoto('${p.name.replace(/'/g, "\\'")}')">📷</button>`;
-    return `
+function catalogPriceLabel(p) {
+  const noLab = useLabPrice && (p.coverage ? p.labBox == null : p.lab == null);
+  let priceLabel;
+  if (p.coverage) {
+    const cov = effectiveCoveragePrices(p);
+    priceLabel = fmtMoney(cov.priceM2) + '/m² · caja cubre ' + p.coverage + ' m²';
+  } else if (p.areaBased) {
+    priceLabel = fmtMoney(effectiveAreaPrice(p)) + '/m²' + (p.installFee ? ' + ' + fmtMoney(effectiveInstallFee(p)) + ' instalación' : '') + ' · se corta a la medida exacta';
+  } else {
+    const eff = effectiveSimplePrice(p);
+    priceLabel = eff ? fmtMoney(eff) + (p.m2PerPza ? '/pza · cubre ' + p.m2PerPza + ' m²' : '') : 'sin precio';
+  }
+  if (noLab) priceLabel += ' (sin LAB)';
+  return priceLabel;
+}
+
+// Un renglón del catálogo. En una búsqueda (mostrarCategoria) también dice de qué categoría es.
+function catalogRowHtml(p, dept, mostrarCategoria) {
+  const fotoUrl = productoFotos[p.name];
+  const fotoBtn = fotoUrl
+    ? `<button class="catalog-photo-thumb" title="Cambiar foto: pega una imagen copiada o elige un archivo" onclick="pickProductoFoto('${p.name.replace(/'/g, "\\'")}')"><img src="${fotoUrl}" alt="" /></button>`
+    : `<button class="catalog-photo-btn" title="Agregar foto: pega una imagen copiada o elige un archivo" onclick="pickProductoFoto('${p.name.replace(/'/g, "\\'")}')">📷</button>`;
+  const escAttr = s => s.replace(/&/g, '&amp;').replace(/'/g, '&#39;');
+  const args = escAttr(JSON.stringify(p)) + ', ' + escAttr(JSON.stringify(dept));
+  const viejo = p.sinListaNueva
+    ? '<span class="tag-old" title="Ya no aparece en la lista de precios de Teknostep de agosto 2026. Se conserva con su precio anterior.">precio anterior</span>'
+    : '';
+  return `
     <div class="catalog-item">
       ${fotoBtn}
-      <div><span class="name">${p.name}</span><span class="price">${priceLabel}</span></div>
-      <button onclick='addFromCatalog(${JSON.stringify(p).replace(/'/g, "&#39;")})'>+ Agregar</button>
+      <div><span class="name">${escapeHtml(p.name)}</span>${viejo}<span class="price">${catalogPriceLabel(p)}</span>${mostrarCategoria ? `<span class="cat-tag">${escapeHtml(dept)}</span>` : ''}</div>
+      <button onclick='addFromCatalog(${args})'>+ Agregar</button>
     </div>
   `;
-  }).join('') : '<div class="catalog-empty">Sin resultados en esta categoría.</div>';
 }
-function addFromCatalog(item) {
+
+// Búsqueda del catálogo completo: sin acentos, plural/singular y varias palabras en cualquier
+// orden. Primero salen los productos que traen TODAS las palabras en su nombre; después los que
+// coinciden solo porque la categoría las dice (ej. "persiana" -> toda "Cortinas y Persianas");
+// y si no hay nada de eso, los que traen al menos alguna palabra.
+function searchCatalogList(raw) {
+  const words = normalizeText(raw).split(' ').filter(w => w && !QUICKADD_STOPWORDS.includes(w));
+  const vacio = { enNombre: [], enCategoria: [], parecidos: [] };
+  if (!words.length) return vacio;
+  const cuenta = (texto, palabras) => words.filter(w => texto.includes(w) || palabras.some(hw =>
+    hw.length >= 4 && w.length >= 4 && (hw.startsWith(w) || w.startsWith(hw)))).length;
+  const res = { enNombre: [], enCategoria: [], parecidos: [] };
+  Object.keys(CATALOG).forEach(dept => {
+    CATALOG[dept].forEach(item => {
+      const nombre = normalizeText(item.name);
+      const todo = normalizeText(item.name + ' ' + dept);
+      const enNombre = cuenta(nombre, nombre.split(' '));
+      const enTodo = cuenta(todo, todo.split(' '));
+      if (enNombre === words.length) res.enNombre.push({ item, dept, inicio: words.some(w => nombre.startsWith(w)) });
+      else if (enTodo === words.length) res.enCategoria.push({ item, dept });
+      else if (enTodo > 0) res.parecidos.push({ item, dept, score: enTodo });
+    });
+  });
+  const porLargo = (x, y) => x.item.name.length - y.item.name.length;
+  // Los que EMPIEZAN con lo buscado van primero ("persiana" -> las persianas, no los motores).
+  res.enNombre.sort((x, y) => (Number(y.inicio) - Number(x.inicio)) || porLargo(x, y));
+  res.enCategoria.sort(porLargo);
+  res.parecidos.sort((x, y) => y.score - x.score || porLargo(x, y));
+  return res;
+}
+
+function clearCatalogSearch() {
+  const input = document.getElementById('catalogSearch');
+  input.value = '';
+  renderCatalogItems();
+  input.focus();
+}
+
+function renderCatalogItems() {
+  const raw = (document.getElementById('catalogSearch').value || '').trim();
+  const el = document.getElementById('catalogItems');
+  const tabsEl = document.getElementById('catalogTabs');
+  const noteEl = document.getElementById('catalogNote');
+  const infoEl = document.getElementById('catalogSearchInfo');
+
+  if (raw) {
+    const { enNombre, enCategoria, parecidos } = searchCatalogList(raw);
+    const exactos = enNombre.length + enCategoria.length;
+    const q = escapeHtml(raw);
+    tabsEl.classList.add('hidden');
+    noteEl.classList.add('hidden');
+    infoEl.classList.remove('hidden');
+    el.classList.add('searching');
+    let msg;
+    if (exactos) msg = '<b>' + exactos + '</b> resultado(s) para «' + q + '» en todo el catálogo' + (exactos > 100 ? ' · se muestran 100, agrega una palabra para afinar' : '');
+    else if (parecidos.length) msg = 'Sin coincidencia exacta para «' + q + '». Estas son las más parecidas';
+    else msg = 'No encontré «' + q + '»';
+    infoEl.innerHTML = '<span>' + msg + '</span><button type="button" class="link-btn" onclick="clearCatalogSearch()">Borrar búsqueda</button>';
+
+    const fila = r => catalogRowHtml(r.item, r.dept, true);
+    let html = '';
+    if (exactos) {
+      html = enNombre.slice(0, 100).map(fila).join('');
+      if (enCategoria.length && enNombre.length < 100) {
+        html += '<div class="catalog-sep">También de esa categoría (' + enCategoria.length + ')</div>' +
+          enCategoria.slice(0, 100 - enNombre.length).map(fila).join('');
+      }
+    } else if (parecidos.length) {
+      html = parecidos.slice(0, 40).map(fila).join('');
+    } else {
+      html = '<div class="catalog-empty">Prueba con menos palabras o revisa cómo está escrito (ej. "media luna", "panel 12w", "persiana").</div>';
+    }
+    el.innerHTML = html;
+    return;
+  }
+
+  tabsEl.classList.remove('hidden');
+  infoEl.classList.add('hidden');
+  el.classList.remove('searching');
+  const items = CATALOG[activeCatalogTab] || [];
+  const fuente = (typeof CATALOG_ACTUALIZADO !== 'undefined') ? CATALOG_ACTUALIZADO[activeCatalogTab] : null;
+  if (fuente) {
+    const viejos = items.filter(p => p.sinListaNueva).length;
+    noteEl.innerHTML = '<b>✓ Precios al día</b> · ' + escapeHtml(fuente) + ', ya con nuestra ganancia' +
+      (viejos ? ' · ' + viejos + ' producto(s) ya no vienen en la lista nueva y conservan su <span class="tag-old">precio anterior</span>' : '');
+    noteEl.classList.remove('hidden');
+  } else {
+    noteEl.classList.add('hidden');
+  }
+  el.innerHTML = items.length
+    ? items.map(p => catalogRowHtml(p, activeCatalogTab, false)).join('')
+    : '<div class="catalog-empty">Sin productos en esta categoría.</div>';
+}
+
+// dept = categoría del producto. Al buscar en todo el catálogo ya no es la pestaña abierta.
+function addFromCatalog(item, dept) {
+  dept = dept || activeCatalogTab;
   if (item.coverage) {
     const cov = effectiveCoveragePrices(item);
-    addCoverageRow(Object.assign({ dept: activeCatalogTab }, item, cov));
+    addCoverageRow(Object.assign({ dept }, item, cov));
   } else if (item.areaBased) {
-    addAreaRow(Object.assign({ dept: activeCatalogTab }, item, { pricePerM2: effectiveAreaPrice(item), installFee: effectiveInstallFee(item) }));
+    addAreaRow(Object.assign({ dept }, item, { pricePerM2: effectiveAreaPrice(item), installFee: effectiveInstallFee(item) }));
   } else {
-    addProductRow({ name: item.name, qty: 1, price: effectiveSimplePrice(item) || '', dept: activeCatalogTab });
+    addProductRow({ name: item.name, qty: 1, price: effectiveSimplePrice(item) || '', dept });
   }
 }
 

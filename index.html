@@ -206,10 +206,12 @@
             <button class="btn-ghost-sm lab-active" id="ivaToggleBtn" type="button" onclick="toggleIva()">🧾 IVA incluido (16%)</button>
             <button class="btn-ghost-sm" id="labToggleBtn" type="button" onclick="toggleLabPrice()">💰 Ver precio LAB</button>
           </div>
-          <div class="catalog-tabs" id="catalogTabs"></div>
           <div class="input-wrap" style="margin-bottom:10px;">
-            <input id="catalogSearch" placeholder="Buscar producto por nombre..." oninput="renderCatalogItems()" />
+            <input id="catalogSearch" autocomplete="off" placeholder="Buscar en TODO el catálogo: media luna, panel 12w, persiana, tapiz…" oninput="renderCatalogItems()" onkeydown="if(event.key==='Escape')clearCatalogSearch()" />
           </div>
+          <div class="catalog-tabs" id="catalogTabs"></div>
+          <div class="catalog-note hidden" id="catalogNote"></div>
+          <div class="catalog-search-info hidden" id="catalogSearchInfo"></div>
           <div class="catalog-items" id="catalogItems"></div>
         </div>
 
