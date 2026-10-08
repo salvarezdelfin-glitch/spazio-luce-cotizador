@@ -252,26 +252,38 @@
   function sbHeaders(extra){
     return Object.assign({ apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (currentAccessToken || SUPABASE_ANON_KEY) }, extra || {});
   }
+  // Misma validación que el cotizador: la URL se arma con texto, así que el id
+  // debe ser un entero y la tabla una de las conocidas (si no, un "1&id=gt.0"
+  // colaría un filtro extra y tocaría más filas de las previstas).
+  function sbTable(name){
+    if(name !== "crm_leads" && name !== "cotizaciones") throw new Error("Tabla no permitida: " + name);
+    return name;
+  }
+  function sbId(id){
+    var n = Number(id);
+    if(!Number.isSafeInteger(n) || n <= 0) throw new Error("id inválido: " + id);
+    return n;
+  }
   function sbSelect(table, qs){
-    return fetch(SUPABASE_URL + '/rest/v1/' + table + '?select=*' + (qs || ''), { headers: sbHeaders() })
+    return fetch(SUPABASE_URL + '/rest/v1/' + sbTable(table) + '?select=*' + (qs || ''), { headers: sbHeaders() })
       .then(function(res){ if(!res.ok) throw new Error(table + ' select failed'); return res.json(); });
   }
   function sbInsert(table, row){
-    return fetch(SUPABASE_URL + '/rest/v1/' + table, {
+    return fetch(SUPABASE_URL + '/rest/v1/' + sbTable(table), {
       method: 'POST',
       headers: sbHeaders({ 'Content-Type': 'application/json', Prefer: 'return=representation' }),
       body: JSON.stringify(row)
     }).then(function(res){ if(!res.ok) throw new Error(table + ' insert failed'); return res.json(); });
   }
   function sbUpdate(table, id, patch){
-    return fetch(SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + id, {
+    return fetch(SUPABASE_URL + '/rest/v1/' + sbTable(table) + '?id=eq.' + sbId(id), {
       method: 'PATCH',
       headers: sbHeaders({ 'Content-Type': 'application/json', Prefer: 'return=representation' }),
       body: JSON.stringify(patch)
     }).then(function(res){ if(!res.ok) throw new Error(table + ' update failed'); return res.json(); });
   }
   function sbDelete(table, id){
-    return fetch(SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + id, { method: 'DELETE', headers: sbHeaders() })
+    return fetch(SUPABASE_URL + '/rest/v1/' + sbTable(table) + '?id=eq.' + sbId(id), { method: 'DELETE', headers: sbHeaders() })
       .then(function(res){ if(!res.ok) throw new Error(table + ' delete failed'); });
   }
 

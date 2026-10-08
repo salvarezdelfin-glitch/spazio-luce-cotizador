@@ -18,6 +18,26 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let currentAccessToken = null;
 
+// PostgREST parametriza todo y la app no arma SQL a mano, así que no hay
+// inyección SQL. Lo que sí se arma con texto es la URL (tabla, id, orden): un id
+// como "1&id=gt.0" colaría un filtro extra y podría tocar más filas de las
+// previstas. Aquí se valida contra listas y patrones estrictos antes de pedir nada.
+const SB_TABLES = new Set(['clientes', 'cotizaciones', 'gastos', 'crm_leads', 'producto_fotos']);
+function sbTable(name) {
+  if (!SB_TABLES.has(name)) throw new Error('Tabla no permitida: ' + name);
+  return name;
+}
+function sbId(id) {
+  const n = Number(id);
+  if (!Number.isSafeInteger(n) || n <= 0) throw new Error('id inválido: ' + id);
+  return n;
+}
+function sbOrder(order) {
+  if (!order) return '';
+  if (!/^[a-z_]+\.(asc|desc)$/.test(order)) throw new Error('orden inválido: ' + order);
+  return '&order=' + order;
+}
+
 function sbHeaders(extra) {
   return Object.assign({
     apikey: SUPABASE_ANON_KEY,
@@ -29,7 +49,7 @@ function sbHeaders(extra) {
 // distinguirlos (el folio, el caché del Dashboard) usa sbSelectRaw.
 async function sbSelectRaw(table, order) {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*${order ? '&order=' + order : ''}`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${sbTable(table)}?select=*${sbOrder(order)}`, {
       headers: sbHeaders(),
     });
     if (!res.ok) throw new Error('select failed');
@@ -46,7 +66,7 @@ async function sbSelect(table, order) {
 
 async function sbInsert(table, row) {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${sbTable(table)}`, {
       method: 'POST',
       headers: sbHeaders({ 'Content-Type': 'application/json', Prefer: 'return=representation' }),
       body: JSON.stringify(row),
@@ -61,7 +81,7 @@ async function sbInsert(table, row) {
 
 async function sbDelete(table, id) {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${sbTable(table)}?id=eq.${sbId(id)}`, {
       method: 'DELETE',
       headers: sbHeaders(),
     });
@@ -75,7 +95,7 @@ async function sbDelete(table, id) {
 
 async function sbUpdate(table, id, patch) {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${sbTable(table)}?id=eq.${sbId(id)}`, {
       method: 'PATCH',
       headers: sbHeaders({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
       body: JSON.stringify(patch),
@@ -238,17 +258,56 @@ function showApp() {
   document.getElementById('currentUserLabel').textContent = currentUser.email;
 }
 
+// Tope de intentos de contraseña: tras 5 fallidos se bloquea el formulario 5
+// minutos. Esto es solo del lado del navegador (frena a quien prueba a mano, no
+// a un script que llame directo a Supabase). El límite que de verdad vale lo
+// pone Supabase Auth en el servidor (ver README, sección Seguridad).
+const LOGIN_MAX_FALLOS = 5;
+const LOGIN_BLOQUEO_MS = 5 * 60 * 1000;
+const LOGIN_LLAVE = 'sl_login_fallos';
+
+function loginEstado() {
+  try {
+    const s = JSON.parse(localStorage.getItem(LOGIN_LLAVE) || 'null');
+    if (s && s.hasta && s.hasta <= Date.now()) { localStorage.removeItem(LOGIN_LLAVE); return { n: 0, hasta: 0 }; }
+    return s || { n: 0, hasta: 0 };
+  } catch (e) { return { n: 0, hasta: 0 }; }
+}
+function loginRegistrarFallo() {
+  const n = loginEstado().n + 1;
+  try { localStorage.setItem(LOGIN_LLAVE, JSON.stringify({ n, hasta: n >= LOGIN_MAX_FALLOS ? Date.now() + LOGIN_BLOQUEO_MS : 0 })); } catch (e) {}
+}
+function loginMinutosRestantes() {
+  const s = loginEstado();
+  return s.hasta > Date.now() ? Math.ceil((s.hasta - Date.now()) / 60000) : 0;
+}
+
 async function handleLogin() {
+  await runWithButtonLock('authSubmitBtn', handleLoginImpl);
+}
+
+async function handleLoginImpl() {
   const email = document.getElementById('loginUser').value.trim();
   const pass = document.getElementById('loginPass').value;
   const errBox = document.getElementById('loginError');
   errBox.classList.add('hidden');
+  const mostrar = msg => { errBox.textContent = msg; errBox.classList.remove('hidden'); };
+
+  const espera = loginMinutosRestantes();
+  if (espera > 0) { mostrar('Demasiados intentos. Espera ' + espera + ' min e inténtalo de nuevo.'); return; }
+
   const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
   if (error || !data.session) {
-    errBox.textContent = 'Correo o contraseña incorrectos.';
-    errBox.classList.remove('hidden');
+    if (error && (error.status === 429 || /rate limit/i.test(error.message || ''))) {
+      mostrar('Demasiados intentos. Espera unos minutos e inténtalo de nuevo.');
+      return;
+    }
+    loginRegistrarFallo();
+    const bloqueo = loginMinutosRestantes();
+    mostrar(bloqueo > 0 ? 'Demasiados intentos. Espera ' + bloqueo + ' min e inténtalo de nuevo.' : 'Correo o contraseña incorrectos.');
     return;
   }
+  try { localStorage.removeItem(LOGIN_LLAVE); } catch (e) {}
   currentAccessToken = data.session.access_token;
   currentUser = { email: data.user.email };
   showApp();
