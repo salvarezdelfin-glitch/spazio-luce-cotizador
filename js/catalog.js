@@ -638,7 +638,8 @@ const CATALOG_ACTUALIZADO = {
   "Follaje Sintético y Pasto": "lista Teknostep del 1 de agosto de 2026",
 };
 
-// Familias del catálogo: primero se elige el tipo (Persianas, Pisos…), luego el subtipo (Screen, Black out…).
+// Familias del catálogo: primero se elige el tipo (Persianas EHG, Pisos…), luego el subtipo (Screen, Black out…).
+// "Persianas EHG" junta toda la lista de ese distribuidor, cada tipo de tela por separado.
 const CATALOG_GROUPS = [
   {
     "name": "Iluminación",
@@ -670,14 +671,19 @@ const CATALOG_GROUPS = [
     ]
   },
   {
-    "name": "Persianas",
+    "name": "Persianas EHG",
     "cats": [
       "Persianas · Screen",
       "Persianas · Filtro ligero",
       "Persianas · Black out",
       "Persianas · Sheer (Duo)",
       "Persianas · Línea exclusiva EHG",
-      "Persianas · Ripplefold y otros",
+      "Persianas · Ripplefold y otros"
+    ]
+  },
+  {
+    "name": "Persianas y motores",
+    "cats": [
       "Persianas · Modelos Spazio Luce",
       "Persianas · Motores y controles"
     ]

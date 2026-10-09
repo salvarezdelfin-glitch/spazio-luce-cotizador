@@ -265,7 +265,7 @@ function showToast(msg) {
 
 // Versión que se ve abajo a la izquierda (para comprobar que la app ya se actualizó).
 // Se cambia en cada publicación.
-const APP_VERSION = '9 oct 2026 · persianas EHG';
+const APP_VERSION = '9 oct 2026 · m² total y familia EHG';
 
 function showApp() {
   document.getElementById('loginScreen').classList.add('hidden');
@@ -695,23 +695,52 @@ function addAreaRow(item) {
   wrap.dataset.installFee = item.installFee || 0;
   wrap.dataset.dept = item.dept || '';
   wrap.dataset.anchoMax = item.anchoMax || '';
+  wrap.dataset.m2auto = '';
   const installTxt = item.installFee ? ' + ' + fmtMoney(item.installFee) + ' de instalación' : '';
   const anchoTxt = item.anchoMax ? ' · ancho máx. ' + item.anchoMax + ' m' : '';
   wrap.innerHTML = `
-    <div class="product-row" style="grid-template-columns: 2fr .9fr .9fr 1fr auto auto; margin-bottom:6px;">
-      <input class="p-name" value="${escapeHtml(item.name)}" disabled />
-      <input placeholder="Ancho (m)" type="number" min="0" step="0.01" class="p-ancho" oninput="recalcTotals()" />
-      <input placeholder="Alto (m)" type="number" min="0" step="0.01" class="p-alto" oninput="recalcTotals()" />
-      <input placeholder="$0.00" class="p-import" disabled />
+    <div class="product-row" style="grid-template-columns: 2fr .9fr .9fr .9fr 1fr auto auto; margin-bottom:6px; align-items:end;">
+      <label class="cell cell-name"><span>Persiana</span><input class="p-name" value="${escapeHtml(item.name)}" disabled /></label>
+      <label class="cell"><span>Ancho (m)</span><input placeholder="0.00" type="number" min="0" step="0.01" class="p-ancho" oninput="onAreaMedidaChange('${id}')" /></label>
+      <label class="cell"><span>Alto (m)</span><input placeholder="0.00" type="number" min="0" step="0.01" class="p-alto" oninput="onAreaMedidaChange('${id}')" /></label>
+      <label class="cell"><span>m² total</span><input placeholder="m²" type="number" min="0" step="0.01" class="p-m2" title="Se llena solo con ancho × alto, o escribe aquí los m² directamente" oninput="onAreaM2Change('${id}')" /></label>
+      <label class="cell"><span>Importe</span><input placeholder="$0.00" class="p-import" disabled /></label>
       <button class="row-photo-btn" title="Pegar o subir foto de este producto" onclick="pickProductoFoto('${item.name.replace(/'/g, "\\'")}')">📷</button>
       <button class="remove-row-btn" onclick="document.getElementById('${id}').remove(); recalcTotals();">✕</button>
     </div>
     <div class="coverage-info" style="font-size:11px;color:var(--text-secondary);padding-left:2px;">
-      ${fmtMoney(item.pricePerM2)}/m²${installTxt}${anchoTxt} · da el ancho y alto exactos de la ventana<span class="ancho-warn hidden"> · ⚠ el ancho pasa del máximo de esta tela</span>
+      ${fmtMoney(item.pricePerM2)}/m²${installTxt}${anchoTxt} · captura ancho y alto (los m² salen solos) o escribe directo los m² totales<span class="ancho-warn hidden"> · ⚠ el ancho pasa del máximo de esta tela</span>
     </div>
   `;
   document.getElementById('productRows').appendChild(wrap);
   refreshRowPhoto(wrap);
+  recalcTotals();
+}
+
+// m² de una persiana: el cuadro "m² total" es la fuente. Se llena solo al capturar ancho y alto;
+// si se escribe a mano, manda lo escrito (ancho y alto se quedan como están).
+function areaM2(row) {
+  const campo = row.querySelector('.p-m2');
+  const v = campo ? parseFloat(campo.value) : 0;
+  return v > 0 ? round2(v) : 0;
+}
+function onAreaMedidaChange(id) {
+  const row = document.getElementById(id);
+  const ancho = parseFloat(row.querySelector('.p-ancho').value) || 0;
+  const alto = parseFloat(row.querySelector('.p-alto').value) || 0;
+  const campo = row.querySelector('.p-m2');
+  if (ancho > 0 && alto > 0) {
+    campo.value = round2(ancho * alto);
+    row.dataset.m2auto = '1';
+  } else if (row.dataset.m2auto === '1') {
+    campo.value = '';
+    row.dataset.m2auto = '';
+  }
+  recalcTotals();
+}
+function onAreaM2Change(id) {
+  const row = document.getElementById(id);
+  row.dataset.m2auto = '';
   recalcTotals();
 }
 
@@ -946,12 +975,12 @@ function addCoverageRow(item) {
   wrap.dataset.priceM2 = item.priceM2;
   wrap.dataset.dept = item.dept || '';
   wrap.innerHTML = `
-    <div class="product-row" style="grid-template-columns: 2fr .9fr .9fr .9fr 1fr auto auto; margin-bottom:6px;">
-      <input class="p-name" value="${escapeHtml(item.name)}" disabled />
-      <input placeholder="Largo (m)" type="number" min="0" step="0.01" class="p-largo" oninput="onLargoAnchoChange('${id}')" />
-      <input placeholder="Ancho (m)" type="number" min="0" step="0.01" class="p-ancho" oninput="onLargoAnchoChange('${id}')" />
-      <input placeholder="Cajas" type="number" min="0" step="1" class="p-cajas" oninput="recalcTotals()" />
-      <input placeholder="$0.00" class="p-import" disabled />
+    <div class="product-row" style="grid-template-columns: 2fr .9fr .9fr .9fr 1fr auto auto; margin-bottom:6px; align-items:end;">
+      <label class="cell cell-name"><span>Producto</span><input class="p-name" value="${escapeHtml(item.name)}" disabled /></label>
+      <label class="cell"><span>Largo (m)</span><input placeholder="0.00" type="number" min="0" step="0.01" class="p-largo" oninput="onLargoAnchoChange('${id}')" /></label>
+      <label class="cell"><span>Ancho (m)</span><input placeholder="0.00" type="number" min="0" step="0.01" class="p-ancho" oninput="onLargoAnchoChange('${id}')" /></label>
+      <label class="cell"><span>Cajas</span><input placeholder="0" type="number" min="0" step="1" class="p-cajas" oninput="recalcTotals()" /></label>
+      <label class="cell"><span>Importe</span><input placeholder="$0.00" class="p-import" disabled /></label>
       <button class="row-photo-btn" title="Pegar o subir foto de este producto" onclick="pickProductoFoto('${item.name.replace(/'/g, "\\'")}')">📷</button>
       <button class="remove-row-btn" onclick="document.getElementById('${id}').remove(); recalcTotals();">✕</button>
     </div>
@@ -982,6 +1011,11 @@ function onLargoAnchoChange(id) {
 function recalcTotals() {
   let subtotal = 0;
 
+  // El encabezado "Cant. / P. Unitario" solo aplica a los renglones normales; las persianas y los pisos
+  // traen sus propias etiquetas en cada campo, así que sin renglones normales el encabezado sobra.
+  const encabezado = document.querySelector('#view-cotizador .col-headers');
+  if (encabezado) encabezado.style.display = document.querySelector('#productRows > .product-row') ? '' : 'none';
+
   document.querySelectorAll('.product-row-coverage').forEach(row => {
     const largo = parseFloat(row.querySelector('.p-largo').value) || 0;
     const ancho = parseFloat(row.querySelector('.p-ancho').value) || 0;
@@ -1011,7 +1045,7 @@ function recalcTotals() {
     const alto = parseFloat(row.querySelector('.p-alto').value) || 0;
     const pricePerM2 = parseFloat(row.dataset.pricePerM2) || 0;
     const installFee = parseFloat(row.dataset.installFee) || 0;
-    const m2 = ancho * alto;
+    const m2 = areaM2(row);
     const anchoMax = parseFloat(row.dataset.anchoMax) || 0;
     const aviso = row.querySelector('.ancho-warn');
     if (aviso) aviso.classList.toggle('hidden', !(anchoMax && ancho > anchoMax));
@@ -1111,7 +1145,7 @@ async function generateQuoteImpl() {
     const alto = parseFloat(row.querySelector('.p-alto').value) || 0;
     const pricePerM2 = parseFloat(row.dataset.pricePerM2) || 0;
     const installFee = parseFloat(row.dataset.installFee) || 0;
-    const m2 = round2(ancho * alto);
+    const m2 = areaM2(row);
     if (name && m2 > 0) {
       rows.push({ name, ancho, alto, m2, pricePerM2, installFee, anchoMax: parseFloat(row.dataset.anchoMax) || null, importe: round2(m2 * pricePerM2 + installFee), dept: row.dataset.dept || null, foto: productoFotos[name] || null });
     }
@@ -1199,7 +1233,7 @@ function renderReciboProductos(quote, fechaObj, fmt, contactoLine) {
     const isArea = !isCoverage && it.m2 != null;
     const cantLabel = isCoverage ? `${it.cajas} caja(s)` : isArea ? `${it.m2} m²` : it.qty;
     const priceLabel = isCoverage ? it.priceBox : isArea ? it.pricePerM2 : it.price;
-    const subLabel = isCoverage ? `${it.largo}m × ${it.ancho}m = ${it.m2} m²` : isArea ? `${it.ancho}m × ${it.alto}m${it.installFee ? ' + ' + fmtMoney(it.installFee) + ' instalación' : ''}` : '';
+    const subLabel = isCoverage ? `${it.largo}m × ${it.ancho}m = ${it.m2} m²` : isArea ? `${it.ancho && it.alto && round2(it.ancho * it.alto) === it.m2 ? it.ancho + 'm × ' + it.alto + 'm' : it.m2 + ' m² (medida total)'}${it.installFee ? ' + ' + fmtMoney(it.installFee) + ' instalación' : ''}` : '';
     return `<tr>
       <td>
         <span class="item-name">${escapeHtml(it.name)}</span>
@@ -1802,8 +1836,10 @@ function addSavedItemRow(it) {
     const enCatalogo = Object.values(CATALOG).flat().find(x => x.name === it.name && x.anchoMax);
     addAreaRow({ name: it.name, pricePerM2: Number(it.pricePerM2), installFee: Number(it.installFee) || 0, anchoMax: Number(it.anchoMax) || (enCatalogo ? enCatalogo.anchoMax : 0), dept });
     const row = ultima('.product-row-area');
-    row.querySelector('.p-ancho').value = it.ancho;
-    row.querySelector('.p-alto').value = it.alto;
+    if (it.ancho) row.querySelector('.p-ancho').value = it.ancho;
+    if (it.alto) row.querySelector('.p-alto').value = it.alto;
+    row.querySelector('.p-m2').value = it.m2 || '';
+    row.dataset.m2auto = (it.ancho && it.alto && round2(it.ancho * it.alto) === it.m2) ? '1' : '';
     return;
   }
   if (it.cajas != null && it.priceBox != null) {                         // piso, muro, deck: por caja
