@@ -171,6 +171,13 @@
   .catalog-items.searching { max-height: 420px; }
   .catalog-item .cat-tag { display: block; font-size: 10px; font-weight: 600; letter-spacing: .02em; color: var(--accent); opacity: .75; margin-top: 3px; }
   .tag-old { display: inline-block; font-size: 10px; font-weight: 700; color: var(--gold); border: 1px solid var(--gold); border-radius: 999px; padding: 0 7px; margin-left: 8px; vertical-align: middle; }
+  .catalog-groups { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .catalog-group { background: var(--bg); border: 1px solid var(--border); color: var(--text); font-size: 13px; font-weight: 700; padding: 9px 16px; border-radius: 10px; }
+  .catalog-group.active { background: var(--accent); color: #0B0B09; border-color: var(--accent); }
+  .catalog-group .count, .catalog-tab .count { font-weight: 600; opacity: .6; margin-left: 4px; font-size: 11px; }
+  .catalog-actions { margin-top: 8px; }
+  .tag-new { display: inline-block; font-size: 10px; font-weight: 700; color: var(--green); border: 1px solid var(--green); border-radius: 999px; padding: 0 7px; margin-left: 8px; vertical-align: middle; }
+  .ancho-warn { color: var(--red); font-weight: 600; }
   .stat-sub { font-size: 11px; color: var(--text-secondary); margin-top: 6px; line-height: 1.4; }
   .pill-seguir { color: var(--gold); font-weight: 600; }
   .catalog-sep { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-secondary); padding: 10px 2px 4px; }

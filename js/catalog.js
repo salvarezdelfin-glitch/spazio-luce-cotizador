@@ -451,7 +451,80 @@ const CATALOG = {
     { name: "Pasto Deportivo 40mm Fibrilado (m²)", price: 255.20, lab: 154.00 },
     { name: "Pasto Deportivo 12mm Monofilamento Rizado (m²)", price: 406.00, lab: 245.00 },
   ],
-  "Persianas · Telas (por m²)": [
+  "Persianas · Screen": [
+    { name: "Persiana Enrollable Screen — Basic", pricePerM2: 415.80, areaBased: true, anchoMax: 3.00, labPerM2: 297.00 },
+    { name: "Persiana Enrollable Screen — Soft", pricePerM2: 415.80, areaBased: true, anchoMax: 3.00, labPerM2: 297.00 },
+    { name: "Persiana Enrollable Screen — Milan", pricePerM2: 586.60, areaBased: true, anchoMax: 2.50, labPerM2: 419.00 },
+    { name: "Persiana Enrollable Screen — One", pricePerM2: 600.60, areaBased: true, anchoMax: 2.50, labPerM2: 429.00 },
+    { name: "Persiana Enrollable Screen — Solar Linen", pricePerM2: 595.00, areaBased: true, anchoMax: 2.50, labPerM2: 425.00, nueva: true },
+  ],
+  "Persianas · Filtro ligero": [
+    { name: "Persiana Enrollable Filtro Ligero — Ipanema", pricePerM2: 404.60, areaBased: true, anchoMax: 2.50, labPerM2: 289.00 },
+    { name: "Persiana Enrollable Filtro Ligero — Sidney", pricePerM2: 445.20, areaBased: true, anchoMax: 3.00, labPerM2: 318.00 },
+    { name: "Persiana Enrollable Filtro Ligero — Shantung", pricePerM2: 441.00, areaBased: true, anchoMax: 3.00, labPerM2: 315.00, nueva: true },
+    { name: "Persiana Enrollable Filtro Ligero — Dallas", pricePerM2: 450.80, areaBased: true, anchoMax: 3.00, labPerM2: 322.00, nueva: true },
+    { name: "Persiana Enrollable Filtro Ligero — Clearview", pricePerM2: 525.00, areaBased: true, anchoMax: 2.80, labPerM2: 375.00, nueva: true },
+    { name: "Persiana Enrollable Filtro Ligero — Wheat", pricePerM2: 539.00, areaBased: true, anchoMax: 2.80, labPerM2: 385.00, nueva: true },
+  ],
+  "Persianas · Black out": [
+    { name: "Persiana Enrollable Black Out — Long Beach", pricePerM2: 420.00, areaBased: true, anchoMax: 2.50, labPerM2: 300.00 },
+    { name: "Persiana Enrollable Black Out — Montreal", pricePerM2: 473.20, areaBased: true, anchoMax: 3.00, labPerM2: 338.00 },
+    { name: "Persiana Enrollable Black Out — Ipanema", pricePerM2: 502.60, areaBased: true, anchoMax: 2.50, labPerM2: 359.00 },
+    { name: "Persiana Enrollable Black Out — Texture", pricePerM2: 529.20, areaBased: true, anchoMax: 2.60, labPerM2: 378.00 },
+    { name: "Persiana Enrollable Black Out — 500", pricePerM2: 543.20, areaBased: true, anchoMax: 3.00, labPerM2: 388.00 },
+    { name: "Persiana Enrollable Black Out — Luxury", pricePerM2: 558.60, areaBased: true, anchoMax: 3.00, labPerM2: 399.00 },
+    { name: "Persiana Enrollable Black Out — Sidney", pricePerM2: 585.20, areaBased: true, anchoMax: 3.00, labPerM2: 418.00 },
+    { name: "Persiana Enrollable Black Out — Shantung", pricePerM2: 595.00, areaBased: true, anchoMax: 3.00, labPerM2: 425.00, nueva: true },
+    { name: "Persiana Enrollable Black Out — Dallas", pricePerM2: 595.00, areaBased: true, anchoMax: 3.00, labPerM2: 425.00, nueva: true },
+  ],
+  "Persianas · Sheer (Duo)": [
+    { name: "Persiana Enrollable Sheer Duo — Basic", pricePerM2: 529.20, areaBased: true, anchoMax: 2.50, labPerM2: 378.00 },
+    { name: "Persiana Enrollable Sheer Duo — Wood Line", pricePerM2: 616.00, areaBased: true, anchoMax: 3.00, labPerM2: 440.00 },
+    { name: "Persiana Enrollable Sheer Duo — Bright", pricePerM2: 753.20, areaBased: true, anchoMax: 2.85, labPerM2: 538.00 },
+    { name: "Persiana Enrollable Sheer Duo — Terra", pricePerM2: 824.60, areaBased: true, anchoMax: 3.00, labPerM2: 589.00 },
+    { name: "Persiana Enrollable Sheer Duo — Dense Woodlook", pricePerM2: 838.60, areaBased: true, anchoMax: 2.80, labPerM2: 599.00 },
+    { name: "Persiana Enrollable Sheer Duo — Dimout", pricePerM2: 868.00, areaBased: true, anchoMax: 3.00, labPerM2: 620.00 },
+    { name: "Persiana Enrollable Sheer Duo — Season", pricePerM2: 978.60, areaBased: true, anchoMax: 3.00, labPerM2: 699.00 },
+    { name: "Persiana Enrollable Sheer Duo — Genius Dimout", pricePerM2: 1034.60, areaBased: true, anchoMax: 2.80, labPerM2: 739.00 },
+    { name: "Persiana Enrollable Sheer Duo — Dimout Woods", pricePerM2: 1044.40, areaBased: true, anchoMax: 3.00, labPerM2: 746.00 },
+    { name: "Persiana Enrollable Sheer Duo — Advantage", pricePerM2: 1075.20, areaBased: true, anchoMax: 3.00, labPerM2: 768.00 },
+    { name: "Persiana Enrollable Sheer Duo — Brave Dimout", pricePerM2: 1089.20, areaBased: true, anchoMax: 2.80, labPerM2: 778.00 },
+    { name: "Persiana Enrollable Sheer Duo — Glam Dimout", pricePerM2: 1089.20, areaBased: true, anchoMax: 3.00, labPerM2: 778.00 },
+    { name: "Persiana Enrollable Sheer Duo — Venus Dimout", pricePerM2: 1099.00, areaBased: true, anchoMax: 3.00, labPerM2: 785.00, nueva: true },
+    { name: "Persiana Enrollable Sheer Duo — Lumiere Dimout", pricePerM2: 1099.00, areaBased: true, anchoMax: 3.00, labPerM2: 785.00, nueva: true },
+    { name: "Persiana Enrollable Sheer Duo — Aria Dimout", pricePerM2: 1113.00, areaBased: true, anchoMax: 3.00, labPerM2: 795.00, nueva: true },
+    { name: "Persiana Enrollable Sheer Duo — Lino Dimout", pricePerM2: 1188.60, areaBased: true, anchoMax: 2.80, labPerM2: 849.00 },
+  ],
+  "Persianas · Línea exclusiva EHG": [
+    { name: "Persiana Enrollable EHG Screen 5% (Basic)", pricePerM2: 404.60, areaBased: true, anchoMax: 3.00, labPerM2: 289.00 },
+    { name: "Persiana Enrollable EHG Screen 10% (Soft)", pricePerM2: 404.60, areaBased: true, anchoMax: 3.00, labPerM2: 289.00 },
+    { name: "Persiana Enrollable EHG Screen 8%", pricePerM2: 581.00, areaBased: true, anchoMax: 3.00, labPerM2: 415.00 },
+    { name: "Persiana Enrollable EHG Filtro Ligero — Traslúcida", pricePerM2: 348.60, areaBased: true, anchoMax: 3.00, labPerM2: 249.00 },
+    { name: "Persiana Enrollable EHG Black Out — Basic (Long Beach)", pricePerM2: 420.00, areaBased: true, anchoMax: 3.00, labPerM2: 300.00 },
+    { name: "Persiana Enrollable EHG Black Out — Caribe (Ipanema)", pricePerM2: 470.40, areaBased: true, anchoMax: 3.00, labPerM2: 336.00 },
+    { name: "Persiana Enrollable EHG Black Out — Estándar (Montreal)", pricePerM2: 456.40, areaBased: true, anchoMax: 3.00, labPerM2: 326.00 },
+    { name: "Persiana Enrollable EHG Sheer Duo — Basic", pricePerM2: 504.00, areaBased: true, anchoMax: 3.00, labPerM2: 360.00 },
+    { name: "Persiana Enrollable EHG Sheer Duo — Wood Line", pricePerM2: 588.00, areaBased: true, anchoMax: 3.00, labPerM2: 420.00 },
+    { name: "Persiana Enrollable EHG Sheer Duo", pricePerM2: 642.60, areaBased: true, anchoMax: 3.00, labPerM2: 459.00 },
+    { name: "Persiana Enrollable EHG Sheer Duo — Dimout", pricePerM2: 840.00, areaBased: true, anchoMax: 3.00, labPerM2: 600.00 },
+  ],
+  "Persianas · Ripplefold y otros": [
+    { name: "Ripplefold Manual — Lux (traslúcida)", pricePerM2: 1694.00, areaBased: true, labPerM2: 1210.00, colores: "White, Ivory, Sand, Light Gray, Gray, Dark Gray" },
+    { name: "Ripplefold Manual — Shadow (dim out)", pricePerM2: 2079.00, areaBased: true, labPerM2: 1485.00, colores: "White, Ivory, Light Gray, Gray" },
+    { name: "Riel Motorizado Ripplefold — hasta 2.00 m (incluye control)", price: 5583.20, lab: 3988.00 },
+    { name: "Riel Motorizado Ripplefold — de 2.01 a 3.50 m (incluye control)", price: 6690.60, lab: 4779.00 },
+    { name: "Riel Motorizado Ripplefold — de 3.51 a 5.00 m (incluye control)", price: 7756.00, lab: 5540.00 },
+    { name: "Riel Motorizado Ripplefold — de 5.01 a 5.80 m (incluye control)", price: 8335.60, lab: 5954.00 },
+    { name: "Persiana Horizontal de Madera 2 pulgadas (escalerilla)", pricePerM2: 2483.60, areaBased: true, labPerM2: 1774.00 },
+    { name: "Persiana de Aluminio Tradicional", pricePerM2: 887.60, areaBased: true, labPerM2: 634.00 },
+    { name: "Persiana de Aluminio Perforado", pricePerM2: 1020.60, areaBased: true, labPerM2: 729.00 },
+    { name: "Persiana Shangrila (consultar precio)", consultar: true },
+    { name: "Persiana PVC (consultar precio)", consultar: true },
+    { name: "Domo Romanizado (consultar precio)", consultar: true },
+    { name: "Panel Japonés (consultar precio)", consultar: true },
+    { name: "Persiana Romana (consultar precio)", consultar: true },
+  ],
+  "Persianas · Modelos Spazio Luce": [
     // Persiana enrollable a medida: se cotiza por m² real de la ventana
     // (ancho x alto), no a precio fijo por pieza — antes esto no servía para
     // cotizar una medida real de cliente. 4 telas/nivel (2026-09-22):
@@ -565,10 +638,72 @@ const CATALOG_ACTUALIZADO = {
   "Follaje Sintético y Pasto": "lista Teknostep del 1 de agosto de 2026",
 };
 
+// Familias del catálogo: primero se elige el tipo (Persianas, Pisos…), luego el subtipo (Screen, Black out…).
+const CATALOG_GROUPS = [
+  {
+    "name": "Iluminación",
+    "cats": [
+      "Iluminación · Paneles LED",
+      "Iluminación · Tiras, Neón y COB",
+      "Iluminación · Fuentes y Reflectores",
+      "Iluminación · Solares",
+      "Iluminación · Focos y Accesorios"
+    ]
+  },
+  {
+    "name": "Candiles",
+    "cats": [
+      "Candiles · Níquel",
+      "Candiles · Swarovski",
+      "Candiles · Alabastro y Austriaco Scholler",
+      "Candiles · Cristal Italiano"
+    ]
+  },
+  {
+    "name": "Pisos, Muros y Deck",
+    "cats": [
+      "Deck y Muro Exterior WPC",
+      "Muro Interior y Placas PVC/PU",
+      "Pisos Laminados y Vinílicos",
+      "Madera de Ingeniería y Zoclos",
+      "Follaje Sintético y Pasto"
+    ]
+  },
+  {
+    "name": "Persianas",
+    "cats": [
+      "Persianas · Screen",
+      "Persianas · Filtro ligero",
+      "Persianas · Black out",
+      "Persianas · Sheer (Duo)",
+      "Persianas · Línea exclusiva EHG",
+      "Persianas · Ripplefold y otros",
+      "Persianas · Modelos Spazio Luce",
+      "Persianas · Motores y controles"
+    ]
+  },
+  {
+    "name": "Cortinas",
+    "cats": [
+      "Cortinas · Motores y controles",
+      "Cortinas · Cortineros, rieles y accesorios"
+    ]
+  }
+];
+
+// Instalación de persiana: se agrega a la cotización con el botón «Agregar instalación» (precio final por persiana).
+const INSTALACION_PERSIANA = { name: 'Instalación de persiana', price: 350 };
+
 // Texto de ayuda que se muestra bajo las pestañas de estas categorías.
 const CATALOG_AYUDA = {
-  "Persianas · Telas (por m²)": "Elige la tela y captura el ancho y alto exactos de la ventana: se cobra por m² más la instalación, que va una sola vez por persiana (no por m²). El motor y el control, si los lleva, se agregan aparte en «Persianas · Motores y controles».",
+  "Persianas · Screen": "Screen: tela de trama abierta que filtra el sol y conserva la vista hacia afuera. «Ancho máx.» es lo máximo que mide la tela. Precio por m² (ancho × alto de la ventana), ya con nuestra ganancia (+40 %). La instalación NO va incluida: agrégala con el botón «Agregar instalación».",
+  "Persianas · Filtro ligero": "Filtro ligero: tela traslúcida que deja pasar luz suave y da privacidad de día. «Ancho máx.» es lo máximo que mide la tela. Precio por m² (ancho × alto de la ventana), ya con nuestra ganancia (+40 %). La instalación NO va incluida: agrégala con el botón «Agregar instalación».",
+  "Persianas · Black out": "Black out: tela opaca que bloquea la luz. «Ancho máx.» es lo máximo que mide la tela. Precio por m² (ancho × alto de la ventana), ya con nuestra ganancia (+40 %). La instalación NO va incluida: agrégala con el botón «Agregar instalación».",
+  "Persianas · Sheer (Duo)": "Sheer / Duo: tela de franjas alternadas, traslúcidas y opacas (día y noche); las «Dimout» bloquean más luz. «Ancho máx.» es lo máximo que mide la tela. Precio por m² (ancho × alto de la ventana), ya con nuestra ganancia (+40 %). La instalación NO va incluida: agrégala con el botón «Agregar instalación».",
+  "Persianas · Línea exclusiva EHG": "Línea exclusiva de EHG Factory, con las mismas familias de tela (Screen, Filtro ligero, Black out y Sheer). «Ancho máx.» es lo máximo que mide la tela. Precio por m² (ancho × alto de la ventana), ya con nuestra ganancia (+40 %). La instalación NO va incluida: agrégala con el botón «Agregar instalación».",
+  "Persianas · Ripplefold y otros": "Ripplefold manual y persianas de madera y aluminio van por m² (los colores disponibles aparecen en cada renglón); los rieles motorizados van por pieza e incluyen control. Los que dicen «consultar precio» no traen precio en la lista: pídelo al asesor y captúralo en el renglón. Ya con nuestra ganancia (+40 %). La instalación NO va incluida: agrégala con el botón «Agregar instalación».",
+  "Persianas · Modelos Spazio Luce": "Los 4 modelos de siempre. Elige la tela y captura el ancho y alto exactos de la ventana: se cobra por m² más la instalación ($250), que ya va incluida una sola vez por persiana (no por m²). No uses el botón de instalación con estos.",
   "Persianas · Motores y controles": "Motores y controles para persianas. Se cotizan por pieza y se agregan junto con la tela de la persiana.",
   "Cortinas · Motores y controles": "Motorización para cortinas (Elatio, Glydea y Huna). Se cotiza por pieza.",
-  "Cortinas · Cortineros, rieles y accesorios": "Cortineros por medida, cortineros por metro, rieles, soportes y accesorios para cortinas.",
+  "Cortinas · Cortineros, rieles y accesorios": "Cortineros por medida, cortineros por metro, rieles, soportes y accesorios para cortinas."
 };

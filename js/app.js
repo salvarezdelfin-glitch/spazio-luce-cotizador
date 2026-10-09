@@ -443,6 +443,7 @@ function effectiveCoveragePrices(item) {
   return { priceM2: round2(item.priceM2 / 1.16), priceBox: round2(item.priceBox / 1.16) };
 }
 function effectiveAreaPrice(item) {
+  if (useLabPrice && item.labPerM2 != null) return item.labPerM2;
   return ivaOn ? item.pricePerM2 : round2(item.pricePerM2 / 1.16);
 }
 function effectiveInstallFee(item) {
@@ -450,25 +451,87 @@ function effectiveInstallFee(item) {
   return ivaOn ? item.installFee : round2(item.installFee / 1.16);
 }
 
-function renderCatalogTabs() {
-  const tabsEl = document.getElementById('catalogTabs');
-  tabsEl.innerHTML = Object.keys(CATALOG).map(cat => `
-    <button class="catalog-tab ${cat === activeCatalogTab ? 'active' : ''}" onclick="setCatalogTab('${cat.replace(/'/g,"\\'")}')">${cat}</button>
-  `).join('');
+// Navegación del catálogo en dos niveles: primero la familia (Persianas, Pisos…) y luego el
+// subtipo (Screen, Black out…). Con tantas categorías juntas era difícil encontrar las cosas.
+let catalogLastTab = {};
+
+function catalogGroups() {
+  const base = (typeof CATALOG_GROUPS !== 'undefined' ? CATALOG_GROUPS : [])
+    .map(g => ({ name: g.name, cats: g.cats.filter(c => CATALOG[c]) }))
+    .filter(g => g.cats.length);
+  const usadas = new Set(base.flatMap(g => g.cats));
+  const resto = Object.keys(CATALOG).filter(c => !usadas.has(c));
+  if (resto.length) base.push({ name: 'Otros', cats: resto });
+  return base;
 }
-function setCatalogTab(cat) {
-  activeCatalogTab = cat;
+function catalogGroupOf(cat) {
+  return catalogGroups().find(g => g.cats.includes(cat)) || null;
+}
+function catalogShortName(cat) {
+  const i = cat.indexOf(' · ');
+  return i > 0 ? cat.slice(i + 3) : cat;
+}
+
+function renderCatalogTabs() {
+  const groups = catalogGroups();
+  const actual = catalogGroupOf(activeCatalogTab) || groups[0];
+  const cuenta = g => g.cats.reduce((a, c) => a + CATALOG[c].length, 0);
+  document.getElementById('catalogGroups').innerHTML = groups.map((g, i) => `
+    <button class="catalog-group ${g === actual || g.name === actual.name ? 'active' : ''}" onclick="setCatalogGroup(${i})">${escapeHtml(g.name)} <span class="count">${cuenta(g)}</span></button>
+  `).join('');
+  document.getElementById('catalogTabs').innerHTML = actual.cats.length > 1 ? actual.cats.map(cat => `
+    <button class="catalog-tab ${cat === activeCatalogTab ? 'active' : ''}" onclick="setCatalogTab('${cat.replace(/'/g, "\\'")}')">${escapeHtml(catalogShortName(cat))} <span class="count">${CATALOG[cat].length}</span></button>
+  `).join('') : '';
+}
+function setCatalogGroup(i) {
+  const g = catalogGroups()[i];
+  if (!g) return;
+  const ultima = catalogLastTab[g.name];
+  activeCatalogTab = (ultima && g.cats.includes(ultima)) ? ultima : g.cats[0];
   renderCatalogTabs();
   renderCatalogItems();
 }
+function setCatalogTab(cat) {
+  activeCatalogTab = cat;
+  const g = catalogGroupOf(cat);
+  if (g) catalogLastTab[g.name] = cat;
+  renderCatalogTabs();
+  renderCatalogItems();
+}
+
+// Instalación de persiana: un botón que la agrega a la cotización (una por persiana; si ya está, suma una).
+function precioInstalacionPersiana() {
+  return ivaOn ? INSTALACION_PERSIANA.price : round2(INSTALACION_PERSIANA.price / 1.16);
+}
+function botonInstalacionHtml() {
+  return '<button type="button" class="btn-ghost-sm" onclick="addInstalacionPersiana()">＋ Agregar instalación (' + fmtMoney(precioInstalacionPersiana()) + ' por persiana)</button>';
+}
+function addInstalacionPersiana() {
+  const precio = precioInstalacionPersiana();
+  const existente = [...document.querySelectorAll('#productRows > .product-row')]
+    .find(r => r.querySelector('.p-name').value.trim() === INSTALACION_PERSIANA.name);
+  if (existente) {
+    const qty = existente.querySelector('.p-qty');
+    qty.value = (parseFloat(qty.value) || 0) + 1;
+    recalcTotals();
+    showToast('Instalación: ' + qty.value + ' persianas');
+    return;
+  }
+  addProductRow({ name: INSTALACION_PERSIANA.name, qty: 1, price: precio, dept: 'Persianas · Instalación' });
+  showToast('Instalación agregada: ' + fmtMoney(precio) + ' por persiana');
+}
+
 function catalogPriceLabel(p) {
-  const noLab = useLabPrice && (p.coverage ? p.labBox == null : p.lab == null);
+  const noLab = useLabPrice && !p.consultar && (p.coverage ? p.labBox == null : p.areaBased ? p.labPerM2 == null : p.lab == null);
   let priceLabel;
-  if (p.coverage) {
+  if (p.consultar) {
+    priceLabel = 'consultar precio con el asesor';
+  } else if (p.coverage) {
     const cov = effectiveCoveragePrices(p);
     priceLabel = fmtMoney(cov.priceM2) + '/m² · caja cubre ' + p.coverage + ' m²';
   } else if (p.areaBased) {
-    priceLabel = fmtMoney(effectiveAreaPrice(p)) + '/m²' + (p.installFee ? ' + ' + fmtMoney(effectiveInstallFee(p)) + ' instalación' : '') + ' · se corta a la medida exacta';
+    priceLabel = fmtMoney(effectiveAreaPrice(p)) + '/m²' + (p.installFee ? ' + ' + fmtMoney(effectiveInstallFee(p)) + ' instalación incluida' : '') +
+      (p.anchoMax ? ' · ancho máx. ' + p.anchoMax + ' m' : '') + (p.colores ? ' · Colores: ' + escapeHtml(p.colores) : '') + ' · se corta a la medida exacta';
   } else {
     const eff = effectiveSimplePrice(p);
     priceLabel = eff ? fmtMoney(eff) + (p.m2PerPza ? '/pza · cubre ' + p.m2PerPza + ' m²' : '') : 'sin precio';
@@ -485,13 +548,14 @@ function catalogRowHtml(p, dept, mostrarCategoria) {
     : `<button class="catalog-photo-btn" title="Agregar foto: pega una imagen copiada o elige un archivo" onclick="pickProductoFoto('${p.name.replace(/'/g, "\\'")}')">📷</button>`;
   const escAttr = s => s.replace(/&/g, '&amp;').replace(/'/g, '&#39;');
   const args = escAttr(JSON.stringify(p)) + ', ' + escAttr(JSON.stringify(dept));
+  const nueva = p.nueva ? '<span class="tag-new">nueva línea</span>' : '';
   const viejo = p.sinListaNueva
     ? '<span class="tag-old" title="Ya no aparece en la lista de precios de Teknostep de agosto 2026. Se conserva con su precio anterior.">precio anterior</span>'
     : '';
   return `
     <div class="catalog-item">
       ${fotoBtn}
-      <div><span class="name">${escapeHtml(p.name)}</span>${viejo}<span class="price">${catalogPriceLabel(p)}</span>${mostrarCategoria ? `<span class="cat-tag">${escapeHtml(dept)}</span>` : ''}</div>
+      <div><span class="name">${escapeHtml(p.name)}</span>${nueva}${viejo}<span class="price">${catalogPriceLabel(p)}</span>${mostrarCategoria ? `<span class="cat-tag">${escapeHtml(dept)}</span>` : ''}</div>
       <button onclick='addFromCatalog(${args})'>+ Agregar</button>
     </div>
   `;
@@ -510,7 +574,7 @@ function searchCatalogList(raw) {
   const res = { enNombre: [], enCategoria: [], parecidos: [] };
   Object.keys(CATALOG).forEach(dept => {
     CATALOG[dept].forEach(item => {
-      const nombre = normalizeText(item.name);
+      const nombre = normalizeText(item.name + ' ' + (item.colores || ''));
       const todo = normalizeText(item.name + ' ' + dept);
       const enNombre = cuenta(nombre, nombre.split(' '));
       const enTodo = cuenta(todo, todo.split(' '));
@@ -540,12 +604,14 @@ function renderCatalogItems() {
   const tabsEl = document.getElementById('catalogTabs');
   const noteEl = document.getElementById('catalogNote');
   const infoEl = document.getElementById('catalogSearchInfo');
+  const groupsEl = document.getElementById('catalogGroups');
 
   if (raw) {
     const { enNombre, enCategoria, parecidos } = searchCatalogList(raw);
     const exactos = enNombre.length + enCategoria.length;
     const q = escapeHtml(raw);
     tabsEl.classList.add('hidden');
+    groupsEl.classList.add('hidden');
     noteEl.classList.add('hidden');
     infoEl.classList.remove('hidden');
     el.classList.add('searching');
@@ -553,7 +619,9 @@ function renderCatalogItems() {
     if (exactos) msg = '<b>' + exactos + '</b> resultado(s) para «' + q + '» en todo el catálogo' + (exactos > 100 ? ' · se muestran 100, agrega una palabra para afinar' : '');
     else if (parecidos.length) msg = 'Sin coincidencia exacta para «' + q + '». Estas son las más parecidas';
     else msg = 'No encontré «' + q + '»';
-    infoEl.innerHTML = '<span>' + msg + '</span><button type="button" class="link-btn" onclick="clearCatalogSearch()">Borrar búsqueda</button>';
+    const conPersianas = enNombre.concat(enCategoria).some(r => r.item.areaBased && !r.item.installFee);
+    infoEl.innerHTML = '<span>' + msg + '</span><span>' + (conPersianas ? botonInstalacionHtml() + ' ' : '') +
+      '<button type="button" class="link-btn" onclick="clearCatalogSearch()">Borrar búsqueda</button></span>';
 
     const fila = r => catalogRowHtml(r.item, r.dept, true);
     let html = '';
@@ -572,7 +640,8 @@ function renderCatalogItems() {
     return;
   }
 
-  tabsEl.classList.remove('hidden');
+  groupsEl.classList.remove('hidden');
+  tabsEl.classList.toggle('hidden', !tabsEl.childElementCount);
   infoEl.classList.add('hidden');
   el.classList.remove('searching');
   const items = CATALOG[activeCatalogTab] || [];
@@ -585,6 +654,8 @@ function renderCatalogItems() {
       (viejos ? ' · ' + viejos + ' producto(s) ya no vienen en la lista nueva y conservan su <span class="tag-old">precio anterior</span>' : '');
   }
   if (ayuda) nota += (nota ? '<br>' : '') + escapeHtml(ayuda);
+  // Las telas nuevas no traen la instalación incluida: botón para agregarla.
+  if (items.some(p => p.areaBased && !p.installFee)) nota += '<div class="catalog-actions">' + botonInstalacionHtml() + '</div>';
   noteEl.innerHTML = nota;
   noteEl.classList.toggle('hidden', !nota);
   el.innerHTML = items.length
@@ -616,7 +687,9 @@ function addAreaRow(item) {
   wrap.dataset.pricePerM2 = item.pricePerM2;
   wrap.dataset.installFee = item.installFee || 0;
   wrap.dataset.dept = item.dept || '';
+  wrap.dataset.anchoMax = item.anchoMax || '';
   const installTxt = item.installFee ? ' + ' + fmtMoney(item.installFee) + ' de instalación' : '';
+  const anchoTxt = item.anchoMax ? ' · ancho máx. ' + item.anchoMax + ' m' : '';
   wrap.innerHTML = `
     <div class="product-row" style="grid-template-columns: 2fr .9fr .9fr 1fr auto auto; margin-bottom:6px;">
       <input class="p-name" value="${escapeHtml(item.name)}" disabled />
@@ -627,7 +700,7 @@ function addAreaRow(item) {
       <button class="remove-row-btn" onclick="document.getElementById('${id}').remove(); recalcTotals();">✕</button>
     </div>
     <div class="coverage-info" style="font-size:11px;color:var(--text-secondary);padding-left:2px;">
-      ${fmtMoney(item.pricePerM2)}/m²${installTxt} · da el ancho y alto exactos de la ventana
+      ${fmtMoney(item.pricePerM2)}/m²${installTxt}${anchoTxt} · da el ancho y alto exactos de la ventana<span class="ancho-warn hidden"> · ⚠ el ancho pasa del máximo de esta tela</span>
     </div>
   `;
   document.getElementById('productRows').appendChild(wrap);
@@ -717,6 +790,11 @@ function searchCatalogAll(query) {
 }
 
 function addQuickMatch(item, dept, parsed) {
+  if (item.areaBased) {
+    addFromCatalog(item, dept);
+    showToast('Agregada: ' + item.name + ' — captura el ancho y alto de la ventana');
+    return;
+  }
   if (item.coverage) {
     const cajas = parsed.unit === 'caja' ? Math.ceil(parsed.qty) : Math.ceil(parsed.qty / item.coverage);
     const cov = effectiveCoveragePrices(item);
@@ -927,6 +1005,9 @@ function recalcTotals() {
     const pricePerM2 = parseFloat(row.dataset.pricePerM2) || 0;
     const installFee = parseFloat(row.dataset.installFee) || 0;
     const m2 = ancho * alto;
+    const anchoMax = parseFloat(row.dataset.anchoMax) || 0;
+    const aviso = row.querySelector('.ancho-warn');
+    if (aviso) aviso.classList.toggle('hidden', !(anchoMax && ancho > anchoMax));
     // La instalación es un cargo fijo por persiana, no por m² — solo se cobra
     // una vez que de verdad hay una medida capturada, no en una fila vacía.
     const importe = m2 > 0 ? round2(m2 * pricePerM2 + installFee) : 0;
@@ -1025,7 +1106,7 @@ async function generateQuoteImpl() {
     const installFee = parseFloat(row.dataset.installFee) || 0;
     const m2 = round2(ancho * alto);
     if (name && m2 > 0) {
-      rows.push({ name, ancho, alto, m2, pricePerM2, installFee, importe: round2(m2 * pricePerM2 + installFee), dept: row.dataset.dept || null, foto: productoFotos[name] || null });
+      rows.push({ name, ancho, alto, m2, pricePerM2, installFee, anchoMax: parseFloat(row.dataset.anchoMax) || null, importe: round2(m2 * pricePerM2 + installFee), dept: row.dataset.dept || null, foto: productoFotos[name] || null });
     }
   });
 
@@ -1711,7 +1792,8 @@ function addSavedItemRow(it) {
   const ultima = sel => { const r = document.querySelectorAll('#productRows > ' + sel); return r[r.length - 1]; };
 
   if (it.pricePerM2 != null && it.ancho != null && it.alto != null) {   // persiana: por m²
-    addAreaRow({ name: it.name, pricePerM2: Number(it.pricePerM2), installFee: Number(it.installFee) || 0, dept });
+    const enCatalogo = Object.values(CATALOG).flat().find(x => x.name === it.name && x.anchoMax);
+    addAreaRow({ name: it.name, pricePerM2: Number(it.pricePerM2), installFee: Number(it.installFee) || 0, anchoMax: Number(it.anchoMax) || (enCatalogo ? enCatalogo.anchoMax : 0), dept });
     const row = ultima('.product-row-area');
     row.querySelector('.p-ancho').value = it.ancho;
     row.querySelector('.p-alto').value = it.alto;
