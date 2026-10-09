@@ -263,10 +263,16 @@ function showToast(msg) {
   setTimeout(() => t.classList.add('hidden'), 2500);
 }
 
+// Versión que se ve abajo a la izquierda (para comprobar que la app ya se actualizó).
+// Se cambia en cada publicación.
+const APP_VERSION = '9 oct 2026 · persianas EHG';
+
 function showApp() {
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('currentUserLabel').textContent = currentUser.email;
+  const v = document.getElementById('appVersion');
+  if (v) v.textContent = 'Versión: ' + APP_VERSION;
 }
 
 // Tope de intentos de contraseña: tras 5 fallidos se bloquea el formulario 5
@@ -476,7 +482,8 @@ function renderCatalogTabs() {
   const groups = catalogGroups();
   const actual = catalogGroupOf(activeCatalogTab) || groups[0];
   const cuenta = g => g.cats.reduce((a, c) => a + CATALOG[c].length, 0);
-  document.getElementById('catalogGroups').innerHTML = groups.map((g, i) => `
+  const groupsHost = document.getElementById('catalogGroups');
+  if (groupsHost) groupsHost.innerHTML = groups.map((g, i) => `
     <button class="catalog-group ${g === actual || g.name === actual.name ? 'active' : ''}" onclick="setCatalogGroup(${i})">${escapeHtml(g.name)} <span class="count">${cuenta(g)}</span></button>
   `).join('');
   document.getElementById('catalogTabs').innerHTML = actual.cats.length > 1 ? actual.cats.map(cat => `
@@ -611,7 +618,7 @@ function renderCatalogItems() {
     const exactos = enNombre.length + enCategoria.length;
     const q = escapeHtml(raw);
     tabsEl.classList.add('hidden');
-    groupsEl.classList.add('hidden');
+    if (groupsEl) groupsEl.classList.add('hidden');
     noteEl.classList.add('hidden');
     infoEl.classList.remove('hidden');
     el.classList.add('searching');
@@ -640,7 +647,7 @@ function renderCatalogItems() {
     return;
   }
 
-  groupsEl.classList.remove('hidden');
+  if (groupsEl) groupsEl.classList.remove('hidden');
   tabsEl.classList.toggle('hidden', !tabsEl.childElementCount);
   infoEl.classList.add('hidden');
   el.classList.remove('searching');

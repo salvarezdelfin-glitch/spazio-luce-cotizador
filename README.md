@@ -18,7 +18,7 @@ Login real con Supabase Auth. Solo entran correos dados de alta en la tabla `app
 
 ## Seguridad
 
-**Quién entra.** Solo los correos de `app_users`. Esa tabla no se puede modificar desde la app ni desde la API (solo lectura de la propia fila); para dar de alta a alguien se hace desde el panel de Supabase o con SQL. Cada tabla de negocio exige estar en esa lista (RLS).
+**Quién entra.** Solo los correos de `app_users`. Esa tabla no se puede modificar desde la app ni desde la API (solo lectura de la propia fila); para dar de alta a alguien se hace desde el panel de Supabase o con SQL. Cada tabla de negocio exige estar en esa lista (RLS). Además, un candado en la base de datos (trigger `solo_correos_autorizados` sobre `auth.users`) impide **crear una cuenta** con un correo que no esté en `app_users`: un desconocido que intente registrarse recibe un rechazo y no se crea nada. Para dar acceso a alguien nuevo: primero agregar su correo a `app_users` y después crear su cuenta (o invitarlo desde el panel de Supabase).
 
 **Límite de envíos (rate limiting).** Los formularios públicos del sitio (cotizar y opinar) escriben sin sesión y cada envío manda un correo. Los limita un trigger en la base (`limit_public_insert`), por IP real (`cf-connecting-ip`, no se puede falsificar) y en total:
 
@@ -34,7 +34,7 @@ Al pasarse responde HTTP 429. El equipo con sesión iniciada no tiene ese tope. 
 **Llaves y secretos:** ver la sección "Llaves y secretos" más abajo. Los datos no los protege esconder la llave del navegador sino Auth + `app_users` + RLS.
 
 **Pendiente en el panel de Supabase (no se puede hacer desde el código):**
-1. Authentication → desactivar "Allow new users to sign up" (hoy cualquiera puede crear una cuenta, aunque sin acceso a datos).
+1. (Opcional) Authentication → apagar "Allow new users to sign up". Ya no hace falta para cerrar el registro, porque el candado de la base de datos lo bloquea; apagarlo solo agrega una segunda capa.
 2. Authentication → Rate Limits: revisar los topes de inicio de sesión y de correos.
 3. Authentication → Password security: activar "Leaked password protection".
 4. Authentication → URL Configuration: que "Site URL" y "Redirect URLs" sean solo `https://salvarezdelfin-glitch.github.io/spazio-luce-cotizador/` (quitar las que no se usen). Es a donde viaja el enlace de recuperar contraseña.

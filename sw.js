@@ -1,4 +1,4 @@
-const CACHE_NAME = 'spazio-luce-v3';
+const CACHE_NAME = 'spazio-luce-v4';
 const APP_SHELL = [
   './',
   './index.html',
@@ -30,7 +30,10 @@ self.addEventListener('activate', (event) => {
 
 // Cascarón de la app (HTML/CSS/JS/íconos propios): red primero, para que un
 // cambio publicado se vea en la SIGUIENTE carga (no dos cargas después como
-// pasaba antes) — cae a caché solo si no hay conexión. Todo lo demás
+// pasaba antes) — cae a caché solo si no hay conexión. GitHub Pages manda
+// "max-age=600": sin cache:'no-cache' el navegador se quedaba hasta 10 minutos
+// con la copia vieja aunque ya hubiera versión nueva; no-cache pregunta al
+// servidor cada vez (si no cambió responde 304, casi gratis). Todo lo demás
 // (Supabase, librerías de CDN) va directo a la red: son datos en vivo o
 // dependencias que deben estar al día.
 self.addEventListener('fetch', (event) => {
@@ -38,7 +41,7 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
 
   event.respondWith(
-    fetch(req)
+    fetch(req, { cache: 'no-cache' })
       .then((res) => {
         if (res.ok) caches.open(CACHE_NAME).then((cache) => cache.put(req, res.clone()));
         return res;
