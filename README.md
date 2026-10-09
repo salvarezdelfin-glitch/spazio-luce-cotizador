@@ -13,7 +13,7 @@ Login real con Supabase Auth. Solo entran correos dados de alta en la tabla `app
 ## Estructura
 
 - `index.html` / `css/styles.css` / `js/app.js` — la app principal (Dashboard, Clientes, Cotizador, Presupuestos, Contabilidad).
-- `js/directorio.js` y `js/prospectos.js` — sección Directorio: contactos (clientes con colonia y referencias, gente de oficio y proveedores, tabla `directorio`), comparador de precios por oficio y unidad, y prospectos a contratar (tabla `prospectos`). Mismas reglas de acceso que el resto.
+- `js/directorio.js` y `js/prospectos.js` — sección Directorio, organizada en grupos (Clientes, Trabajadores, Proveedores, Aliados, Servicios, Otros; el grupo se deduce del tipo): contactos en la tabla `directorio` (los clientes siguen en `clientes`), comparador de precios por oficio y unidad, y prospectos a contratar (tabla `prospectos`). Mismas reglas de acceso que el resto.
 - `crm/index.html` — CRM de leads, sincronizado con las cotizaciones.
 - `manifest.json` / `sw.js` / `icons/` — soporte de PWA (instalable desde el navegador).
 

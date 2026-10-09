@@ -163,12 +163,14 @@
 
     <div id="view-directorio" class="hidden">
       <div class="topbar">
-        <div><h2>Directorio</h2><div class="sub">Clientes, oficios, proveedores y prospectos · teléfono, dónde viven, precios y referencias</div></div>
+        <div><h2>Directorio</h2><div class="sub">Clientes, trabajadores, proveedores, aliados y servicios · teléfono, dónde viven, precios y referencias</div></div>
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
           <div id="dirBtnsContactos" style="display:flex; gap:10px; flex-wrap:wrap;">
             <button class="btn-ghost-sm" onclick="exportDirectorioCsv()">⬇️ Exportar CSV</button>
-            <button class="btn-ghost-sm" onclick="openDirModal('clientes', null)">+ Nuevo cliente</button>
-            <button class="btn-accent-sm" style="width:auto;" onclick="openDirModal('directorio', null)">+ Nuevo contacto</button>
+            <button class="btn-ghost-sm" onclick="openDirModal('clientes', null)">+ Cliente</button>
+            <button class="btn-accent-sm" style="width:auto;" onclick="openDirModal('directorio', null, 'Trabajadores')">+ Trabajador</button>
+            <button class="btn-ghost-sm" onclick="openDirModal('directorio', null, 'Proveedores')">+ Proveedor</button>
+            <button class="btn-ghost-sm" onclick="openDirModal('directorio', null, 'Aliados')">+ Aliado / otro</button>
           </div>
           <div id="dirBtnsProspectos" class="hidden">
             <button class="btn-accent-sm" style="width:auto;" onclick="openProsModal(null)">+ Nuevo prospecto</button>
@@ -183,7 +185,8 @@
 
       <div id="dirPanel-contactos">
         <div class="input-wrap" style="margin-bottom:12px;"><input id="dirBuscar" type="search" placeholder="Buscar por nombre, oficio, teléfono, colonia, calle, referencia…" oninput="onDirBusqueda(this.value)" autocomplete="off" /></div>
-        <div class="catalog-groups" id="dirChips"></div>
+        <div class="catalog-groups" id="dirGrupos"></div>
+        <div class="catalog-groups" id="dirChips" style="gap:6px;"></div>
         <div class="dir-count" id="dirCount"></div>
         <div id="dirList" class="dir-list"></div>
       </div>
@@ -231,10 +234,12 @@
     <div id="dirModal" class="hidden" style="position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:200; display:flex; align-items:center; justify-content:center; padding:20px;">
       <div class="card" style="max-width:520px; width:100%; max-height:90vh; overflow-y:auto;">
         <h1 style="font-size:17px;" id="dirModalTitle">Contacto</h1>
+        <datalist id="dirTiposList"></datalist>
         <div class="form-row solo-oficio">
-          <div class="field"><label>Oficio o tipo</label><div class="input-wrap"><input id="dirTipo" list="dirTiposList" placeholder="Albañil, Electricista, Proveedor…" /></div><datalist id="dirTiposList"></datalist></div>
+          <div class="field"><label>Tipo</label><div class="input-wrap"><select id="dirTipoSel" onchange="onDirTipoSel()"></select></div></div>
           <div class="field"><label>Empresa o cuadrilla (opcional)</label><div class="input-wrap"><input id="dirEmpresa" /></div></div>
         </div>
+        <div class="field hidden" id="dirTipoOtroWrap"><label>¿Qué tipo?</label><div class="input-wrap"><input id="dirTipo" maxlength="60" placeholder="Ej. Jardinero" /></div></div>
         <div class="field"><label>Nombre</label><div class="input-wrap"><input id="dirNombre" maxlength="120" /></div></div>
         <div class="form-row">
           <div class="field"><label>Teléfono / WhatsApp</label><div class="input-wrap"><input id="dirTelefono" type="tel" placeholder="10 dígitos" /></div></div>
@@ -255,6 +260,11 @@
           <div class="field"><label>Detalle de la tarifa (incluye material, mínimo…)</label><div class="input-wrap"><input id="dirTarifa" /></div></div>
           <div class="field"><label>Calificación</label><div class="input-wrap"><select id="dirCalificacion"><option value="">Sin calificar</option><option value="5">★★★★★ Excelente</option><option value="4">★★★★ Muy bueno</option><option value="3">★★★ Regular</option><option value="2">★★ Malo</option><option value="1">★ No volver a llamar</option></select></div></div>
         </div>
+        <div class="form-row solo-trabajador hidden">
+          <div class="field"><label>Cómo se le contrata</label><div class="input-wrap"><select id="dirContratacion"></select></div></div>
+          <div class="field"><label>Contacto de emergencia (nombre y teléfono)</label><div class="input-wrap"><input id="dirEmergencia" maxlength="200" /></div></div>
+        </div>
+        <div class="field"><label>Cómo nos conoció / quién lo recomendó</label><div class="input-wrap"><input id="dirOrigen" maxlength="200" placeholder="Referido por…, Facebook, pasó por la tienda…" /></div></div>
         <div class="field"><label>Notas</label><div class="input-wrap"><textarea id="dirNotas" rows="3" style="width:100%; resize:vertical;"></textarea></div></div>
         <button class="btn-primary" id="dirGuardarBtn" onclick="saveDirContacto()">Guardar</button>
         <button class="link-btn" style="display:block; margin:14px auto 0;" onclick="closeDirModal()">Cerrar</button>

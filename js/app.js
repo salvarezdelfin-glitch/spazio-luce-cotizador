@@ -265,7 +265,7 @@ function showToast(msg) {
 
 // Versión que se ve abajo a la izquierda (para comprobar que la app ya se actualizó).
 // Se cambia en cada publicación.
-const APP_VERSION = '9 oct 2026 · Directorio, precios y prospectos';
+const APP_VERSION = '9 oct 2026 · Directorio por grupos';
 
 function showApp() {
   document.getElementById('loginScreen').classList.add('hidden');
