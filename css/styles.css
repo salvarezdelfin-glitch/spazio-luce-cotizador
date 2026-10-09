@@ -324,3 +324,18 @@
     .recibo-card { position: absolute; left: 0; top: 0; width: 100%; max-width: 100%; box-shadow: none; border: none; }
     .no-print { display: none !important; }
   }
+
+  /* Directorio */
+  .dir-count { font-size: 12px; color: var(--text-secondary); margin: 2px 0 10px; }
+  .dir-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+  .dir-card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; min-width: 0; }
+  .dir-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+  .dir-name { font-size: 15px; font-weight: 700; overflow-wrap: anywhere; }
+  .dir-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+  .dir-tipo { color: var(--accent); font-weight: 700; }
+  .dir-line { display: flex; gap: 10px; font-size: 13px; line-height: 1.5; padding: 3px 0; overflow-wrap: anywhere; }
+  .dir-line > span:first-child { flex: 0 0 74px; color: var(--text-secondary); font-size: 12px; }
+  .dir-line a { color: var(--accent); text-decoration: none; }
+  .dir-line a:hover { text-decoration: underline; }
+  .dir-stars { color: var(--gold); font-size: 12px; letter-spacing: 1px; margin-left: 6px; }
+  .dir-stars-off { color: var(--border); }

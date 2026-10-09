@@ -24,7 +24,7 @@ let currentAccessToken = null;
 // inyección SQL. Lo que sí se arma con texto es la URL (tabla, id, orden): un id
 // como "1&id=gt.0" colaría un filtro extra y podría tocar más filas de las
 // previstas. Aquí se valida contra listas y patrones estrictos antes de pedir nada.
-const SB_TABLES = new Set(['clientes', 'cotizaciones', 'gastos', 'crm_leads', 'producto_fotos']);
+const SB_TABLES = new Set(['clientes', 'cotizaciones', 'gastos', 'crm_leads', 'producto_fotos', 'directorio']);
 function sbTable(name) {
   if (!SB_TABLES.has(name)) throw new Error('Tabla no permitida: ' + name);
   return name;
@@ -265,7 +265,7 @@ function showToast(msg) {
 
 // Versión que se ve abajo a la izquierda (para comprobar que la app ya se actualizó).
 // Se cambia en cada publicación.
-const APP_VERSION = '9 oct 2026 · m² total en pisos y ganancia estimada';
+const APP_VERSION = '9 oct 2026 · Directorio de contactos';
 
 function showApp() {
   document.getElementById('loginScreen').classList.add('hidden');
@@ -392,7 +392,7 @@ async function confirmNewPassword() {
 }
 
 function showView(view) {
-  ['dashboard','clientes','cotizador','presupuestos','contabilidad','reportes','recibo'].forEach(v => {
+  ['dashboard','clientes','directorio','cotizador','presupuestos','contabilidad','reportes','recibo'].forEach(v => {
     document.getElementById('view-' + v).classList.toggle('hidden', v !== view);
   });
   document.querySelectorAll('.nav-item').forEach(el => {
@@ -402,6 +402,7 @@ function showView(view) {
   if (view === 'presupuestos') preparePresupuestos();
   if (view === 'contabilidad') prepareContabilidad();
   if (view === 'reportes') refreshReportes();
+  if (view === 'directorio') prepareDirectorio();
 }
 
 let activeCatalogTab = Object.keys(CATALOG)[0];
