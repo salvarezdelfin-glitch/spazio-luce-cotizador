@@ -90,7 +90,7 @@
     return { subcarpeta: cliente, archivo: `Cotizacion ${folio} - ${cliente}.pdf` };
   }
 
-  async function generarPdf() {
+  async function generarPdfNuevo() {
     await cargarHtml2pdf();
     const el = document.getElementById('reciboCard');
     return window.html2pdf().set({
@@ -101,6 +101,42 @@
       pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.recibo-header', '.recibo-totals'] },
     }).from(el).outputPdf('blob');
   }
+
+  // Un solo PDF por cotizacion: lo comparten "Guardar en carpeta" y el envio por
+  // WhatsApp. `listo` guarda el resultado para poder usarlo sin esperar (compartir
+  // exige que el toque del usuario siga "fresco").
+  let pdfCache = null; // { quote, promesa, listo }
+  function pdfDe(q) {
+    if (!pdfCache || pdfCache.quote !== q) {
+      const entrada = { quote: q, listo: null };
+      entrada.promesa = generarPdfNuevo().then(blob => {
+        entrada.listo = blob;
+        return blob;
+      }).catch(err => {
+        if (pdfCache === entrada) pdfCache = null; // permitir reintentar
+        throw err;
+      });
+      pdfCache = entrada;
+    }
+    return pdfCache;
+  }
+  function generarPdf() { return pdfDe(ultimaCotizacion).promesa; }
+
+  // API para el resto de la app (envio por WhatsApp / correo).
+  window.spazioPdf = {
+    // File ya generado de la cotizacion en pantalla, o null si aun se prepara.
+    listo() {
+      if (!ultimaCotizacion || !pdfCache || pdfCache.quote !== ultimaCotizacion || !pdfCache.listo) return null;
+      return new File([pdfCache.listo], nombres(ultimaCotizacion).archivo, { type: 'application/pdf' });
+    },
+    // Promesa del File (lo genera si hace falta).
+    async obtener() {
+      if (!ultimaCotizacion) throw new Error('No hay cotizacion abierta');
+      const q = ultimaCotizacion;
+      const blob = await pdfDe(q).promesa;
+      return new File([blob], nombres(q).archivo, { type: 'application/pdf' });
+    },
+  };
 
   async function existe(dir, nombre) {
     try { await dir.getFileHandle(nombre); return true; } catch (e) { return false; }
@@ -180,6 +216,8 @@
       montarUi();
       pintarEstado();
       setTimeout(() => guardar(false).catch(err => console.warn('Guardado automatico:', err)), 400);
+      // Adelantar el PDF para que "Enviar por WhatsApp" lo tenga listo al tocarlo.
+      setTimeout(() => { if (quote === ultimaCotizacion) pdfDe(quote).promesa.catch(err => console.warn('PDF previo:', err)); }, 700);
       return r;
     };
   }

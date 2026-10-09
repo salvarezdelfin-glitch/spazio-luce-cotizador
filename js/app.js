@@ -265,7 +265,7 @@ function showToast(msg) {
 
 // Versión que se ve abajo a la izquierda (para comprobar que la app ya se actualizó).
 // Se cambia en cada publicación.
-const APP_VERSION = '9 oct 2026 · m² total y familia EHG';
+const APP_VERSION = '9 oct 2026 · logo en PDF y envío por WhatsApp';
 
 function showApp() {
   document.getElementById('loginScreen').classList.add('hidden');
@@ -1225,7 +1225,8 @@ function renderRecibo(quote, fecha) {
 
 // Formato "Nota de Cobro" normal, para cotizaciones armadas desde el catálogo de productos.
 function renderReciboProductos(quote, fechaObj, fmt, contactoLine) {
-  const deptTags = [...new Set(quote.items.map(it => it.dept).filter(Boolean))];
+  // Solo la familia ("Persianas · Screen" → "Persianas"), sin repetir
+  const deptTags = [...new Set(quote.items.map(it => (it.dept || '').split(' · ')[0].trim()).filter(Boolean))];
   const tagline = deptTags.length ? deptTags.join(' · ') : 'SPAZIO LUCE';
 
   const rowsHtml = quote.items.map(it => {
@@ -1444,12 +1445,72 @@ function seguirPorWhatsApp(id) {
   window.open(`https://wa.me/${tel}?text=${msg}`, '_blank');
 }
 
+// WhatsApp no deja adjuntar un archivo desde una página web con un enlace (wa.me
+// solo lleva texto). Lo más cercano: en celular/iPad se abre la hoja de compartir
+// con el PDF y el mensaje juntos; en computadora se descarga el PDF y se abre el
+// chat del cliente con el mensaje escrito, para arrastrar el archivo.
+function mensajeCotizacion(quote, conPdf) {
+  return `Hola ${quote.client}, te comparto tu cotización ${quote.folio} de Spazio Luce por un total de ${fmtMoney(quote.total)}.` +
+    (conPdf ? ' Adjunto el PDF. ¡Gracias!' : ' En un momento te mando el PDF. ¡Gracias!');
+}
+function descargarArchivo(file) {
+  const url = URL.createObjectURL(file);
+  const a = document.createElement('a');
+  a.href = url; a.download = file.name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+function esDispositivoTactil() {
+  return !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+}
+async function enviarCotizacionPorWhatsApp(quote, boton) {
+  const msg = mensajeCotizacion(quote, true);
+  const chat = `https://wa.me/${waPhone(quote.phone)}?text=${encodeURIComponent(msg)}`;
+  const soloMensaje = () => window.open(chat, '_blank');
+  if (!window.spazioPdf) { soloMensaje(); return; }
+
+  const textoOriginal = boton.textContent;
+  boton.disabled = true;
+  try {
+    let pdf = window.spazioPdf.listo();
+    if (!pdf) {
+      boton.textContent = 'Preparando PDF…';
+      pdf = await window.spazioPdf.obtener();
+    }
+    if (esDispositivoTactil() && navigator.canShare && navigator.canShare({ files: [pdf] })) {
+      try {
+        await navigator.share({ files: [pdf], text: msg, title: 'Cotización ' + quote.folio });
+        return;
+      } catch (err) {
+        if (err && err.name === 'AbortError') return; // cerró la hoja de compartir
+        if (err && err.name === 'NotAllowedError') {
+          // Tardó el PDF y el sistema ya no deja abrir la hoja: ahora que está listo, un toque más.
+          showToast('PDF listo: toca el botón otra vez para enviarlo');
+          return;
+        }
+        console.warn('Compartir falló, se usa descarga:', err);
+      }
+    }
+    descargarArchivo(pdf);
+    try { await navigator.clipboard.writeText(msg); } catch (e) { /* el mensaje ya va escrito en el chat */ }
+    window.open(chat, '_blank');
+    showToast('PDF descargado. Adjúntalo en el chat de WhatsApp que se abrió');
+  } catch (err) {
+    console.error(err);
+    showToast('No se pudo preparar el PDF; se abre WhatsApp solo con el mensaje');
+    soloMensaje();
+  } finally {
+    boton.disabled = false;
+    boton.textContent = textoOriginal;
+  }
+}
+
 function wireReciboButtons(quote) {
-  const waMsg = encodeURIComponent(
-    `Hola ${quote.client}, te comparto tu cotización ${quote.folio} de Spazio Luce por un total de ${fmtMoney(quote.total)}. En un momento te mando el PDF. ¡Gracias!`
-  );
+  const waMsg = encodeURIComponent(mensajeCotizacion(quote, false));
   const phoneDigits = waPhone(quote.phone);
-  document.getElementById('reciboWhatsBtn').onclick = () => {
+  const botonWa = document.getElementById('reciboWhatsBtn');
+  botonWa.onclick = () => enviarCotizacionPorWhatsApp(quote, botonWa);
+  document.getElementById('reciboWhatsMsgBtn').onclick = () => {
     window.open(`https://wa.me/${phoneDigits}?text=${waMsg}`, '_blank');
   };
   document.getElementById('reciboMailBtn').onclick = () => {

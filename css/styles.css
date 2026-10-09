@@ -208,7 +208,9 @@
     background: #000;
     border-radius: 6px;
     padding: 10px 16px;
-    display: inline-block;
+    /* block + fit-content (no inline-block): html2canvas pinta el fondo de un inline-block encima de su contenido y el PDF sale con el logo tapado */
+    display: block;
+    width: fit-content;
   }
   .recibo-header .logo-block img { max-height: 46px; display: block; }
   .recibo-header .logo-tagline {
