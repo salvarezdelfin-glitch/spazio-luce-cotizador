@@ -314,7 +314,7 @@
 
     <div id="view-contabilidad" class="hidden">
       <div class="topbar">
-        <div><h2>Contabilidad</h2><div class="sub">Ingresos (cotizaciones pagadas) y egresos del negocio, por mes</div></div>
+        <div><h2>Contabilidad</h2><div class="sub">Ingresos cobrados, egresos y ganancia estimada (25–35 %), por mes</div></div>
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
           <div class="input-wrap" style="padding:8px 12px;"><input type="month" id="contaMes" onchange="refreshContabilidad()" /></div>
           <button class="btn-ghost-sm" id="contaExportBtn" onclick="exportContabilidadCsv()">⬇️ Exportar CSV</button>
@@ -366,7 +366,7 @@
 
       <div class="panels-grid">
         <div class="panel">
-          <h3>Ingresos por mes (cobrado)</h3>
+          <h3>Ventas cobradas por mes y ganancia estimada</h3>
           <div id="reportesIngresosChart"></div>
         </div>
         <div class="panel">

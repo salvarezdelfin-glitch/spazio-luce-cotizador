@@ -265,7 +265,7 @@ function showToast(msg) {
 
 // Versión que se ve abajo a la izquierda (para comprobar que la app ya se actualizó).
 // Se cambia en cada publicación.
-const APP_VERSION = '9 oct 2026 · logo en PDF y envío por WhatsApp';
+const APP_VERSION = '9 oct 2026 · ganancia estimada 25–35 %';
 
 function showApp() {
   document.getElementById('loginScreen').classList.add('hidden');
@@ -417,6 +417,15 @@ let useLabPrice = false;
 let ivaOn = true;
 
 function round2(n) { return Math.round(n * 100) / 100; }
+// Ganancia estimada: nuestros márgenes van siempre entre 25 % y 35 % de la venta
+// SIN IVA (el IVA no es nuestro). 30 % es el punto medio y coincide con la fórmula
+// de precios del catálogo (costo ÷ 0.70). No se calcula por cotización: es una
+// estimación sobre lo cobrado.
+const MARGEN_MIN = 0.25, MARGEN_MAX = 0.35, MARGEN_MEDIO = 0.30;
+function gananciaEstimada(ventaSinIva) {
+  const base = Math.max(0, Number(ventaSinIva) || 0);
+  return { min: round2(base * MARGEN_MIN), mid: round2(base * MARGEN_MEDIO), max: round2(base * MARGEN_MAX) };
+}
 // $1,234.56 en vez de $1234.56 en todo lo que se le muestra al cliente o al
 // usuario (recibos, PDF, listas) — inputs numéricos reales y el CSV se quedan
 // sin comas aparte, para no romper su valor numérico.
@@ -2235,19 +2244,26 @@ async function refreshContabilidad() {
   egresos = round2(egresos);
   ivaEgresos = round2(ivaEgresos);
 
-  const utilidad = round2(ingresos - egresos);
+  const flujo = round2(ingresos - egresos);
   const ivaNeto = round2(ivaIngresos - ivaEgresos);
+  const gan = gananciaEstimada(ingresos - ivaIngresos);
 
   const stats = [
-    { label: 'Ingresos del mes (pagado)', value: '$' + ingresos.toLocaleString('es-MX', { minimumFractionDigits: 2 }) },
-    { label: 'Egresos del mes', value: '$' + egresos.toLocaleString('es-MX', { minimumFractionDigits: 2 }) },
-    { label: 'Utilidad del mes', value: '$' + utilidad.toLocaleString('es-MX', { minimumFractionDigits: 2 }) },
-    { label: 'IVA trasladado (neto)', value: '$' + ivaNeto.toLocaleString('es-MX', { minimumFractionDigits: 2 }) },
+    { label: 'Ingresos del mes (cobrado)', value: fmtMoney(ingresos),
+      sub: 'Ventas cobradas, con IVA: no es ganancia' },
+    { label: 'Ganancia estimada del mes', value: fmtMoney(gan.min) + ' – ' + fmtMoney(gan.max),
+      sub: 'Entre 25 % y 35 % de lo cobrado sin IVA · con 30 %: ' + fmtMoney(gan.mid) },
+    { label: 'Egresos registrados', value: fmtMoney(egresos),
+      sub: 'Lo que capturas en Gastos' },
+    { label: 'Ingresos − egresos', value: fmtMoney(flujo),
+      sub: 'Flujo de caja (con IVA), no es la ganancia' },
+    { label: 'IVA trasladado (neto)', value: fmtMoney(ivaNeto) },
   ];
   document.getElementById('contaStatsGrid').innerHTML = stats.map(s => `
     <div class="stat-card">
       <div class="label">${s.label}</div>
       <div class="value">${s.value}</div>
+      ${s.sub ? `<div class="stat-sub">${s.sub}</div>` : ''}
     </div>
   `).join('');
 
@@ -2329,6 +2345,14 @@ function exportContabilidadCsv() {
   const rows = [['Tipo', 'Fecha', 'Concepto/Cliente', 'Categoría/Método', 'Monto']];
   pagadas.forEach(c => rows.push(['Ingreso', c.fecha_pago, c.client + ' (' + c.folio + ')', c.metodo_pago || '', Number(c.monto_pagado != null ? c.monto_pagado : c.total).toFixed(2)]));
   gastosMes.forEach(g => rows.push(['Egreso', g.fecha, g.concepto, g.categoria || '', Number(g.monto).toFixed(2)]));
+  const sinIvaMes = pagadas.reduce((s, c) => {
+    const monto = Number(c.monto_pagado != null ? c.monto_pagado : c.total) || 0;
+    return s + (c.iva_incluido ? monto / 1.16 : monto);
+  }, 0);
+  const g = gananciaEstimada(sinIvaMes);
+  rows.push(['Ganancia estimada 25%', '', 'Sobre ventas cobradas sin IVA', '', g.min.toFixed(2)]);
+  rows.push(['Ganancia estimada 30%', '', 'Sobre ventas cobradas sin IVA', '', g.mid.toFixed(2)]);
+  rows.push(['Ganancia estimada 35%', '', 'Sobre ventas cobradas sin IVA', '', g.max.toFixed(2)]);
 
   const csv = rows.map(r => r.map(csvEscape).join(',')).join('\r\n');
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -2361,15 +2385,18 @@ async function refreshReportes() {
 
   // --- Ingresos por mes (cobrado) ---
   const ingresosPorMes = mesesRango.map(({ y, m, label }) => {
-    const total = cotizaciones
-      .filter(c => c.pagado && enMes(c.fecha_pago, y, m))
-      .reduce((s, c) => s + Number(c.monto_pagado != null ? c.monto_pagado : c.total || 0), 0);
-    return { label, total: round2(total) };
+    let total = 0, sinIva = 0;
+    cotizaciones.filter(c => c.pagado && enMes(c.fecha_pago, y, m)).forEach(c => {
+      const monto = Number(c.monto_pagado != null ? c.monto_pagado : c.total || 0);
+      total += monto;
+      sinIva += c.iva_incluido ? monto / 1.16 : monto;
+    });
+    return { label, total: round2(total), gan: gananciaEstimada(sinIva) };
   });
   const maxIngreso = Math.max(1, ...ingresosPorMes.map(x => x.total));
   document.getElementById('reportesIngresosChart').innerHTML = ingresosPorMes.map(x => `
     <div class="bar-row">
-      <div class="bar-row-top"><span class="bar-label">${x.label}</span><span class="bar-value">$${x.total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span></div>
+      <div class="bar-row-top"><span class="bar-label">${x.label} <span style="color:var(--text-secondary);">· ganancia ≈ ${fmtMoney(x.gan.min)} – ${fmtMoney(x.gan.max)}</span></span><span class="bar-value">$${x.total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span></div>
       <div class="bar-track"><div class="bar-fill" style="width:${(x.total / maxIngreso * 100).toFixed(1)}%"></div></div>
     </div>
   `).join('') || '<div class="empty-state">Sin datos todavía.</div>';
