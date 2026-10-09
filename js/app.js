@@ -265,7 +265,7 @@ function showToast(msg) {
 
 // Versión que se ve abajo a la izquierda (para comprobar que la app ya se actualizó).
 // Se cambia en cada publicación.
-const APP_VERSION = '9 oct 2026 · ganancia estimada 25–35 %';
+const APP_VERSION = '9 oct 2026 · m² total en pisos y ganancia estimada';
 
 function showApp() {
   document.getElementById('loginScreen').classList.add('hidden');
@@ -984,17 +984,18 @@ function addCoverageRow(item) {
   wrap.dataset.priceM2 = item.priceM2;
   wrap.dataset.dept = item.dept || '';
   wrap.innerHTML = `
-    <div class="product-row" style="grid-template-columns: 2fr .9fr .9fr .9fr 1fr auto auto; margin-bottom:6px; align-items:end;">
+    <div class="product-row" style="grid-template-columns: 2fr .9fr .9fr .9fr .9fr 1fr auto auto; margin-bottom:6px; align-items:end;">
       <label class="cell cell-name"><span>Producto</span><input class="p-name" value="${escapeHtml(item.name)}" disabled /></label>
       <label class="cell"><span>Largo (m)</span><input placeholder="0.00" type="number" min="0" step="0.01" class="p-largo" oninput="onLargoAnchoChange('${id}')" /></label>
       <label class="cell"><span>Ancho (m)</span><input placeholder="0.00" type="number" min="0" step="0.01" class="p-ancho" oninput="onLargoAnchoChange('${id}')" /></label>
+      <label class="cell"><span>m² total</span><input placeholder="m²" type="number" min="0" step="0.01" class="p-m2" title="Se llena solo con largo × ancho, o escribe aquí los m² directamente" oninput="onCoverageM2Change('${id}')" /></label>
       <label class="cell"><span>Cajas</span><input placeholder="0" type="number" min="0" step="1" class="p-cajas" oninput="recalcTotals()" /></label>
       <label class="cell"><span>Importe</span><input placeholder="$0.00" class="p-import" disabled /></label>
       <button class="row-photo-btn" title="Pegar o subir foto de este producto" onclick="pickProductoFoto('${item.name.replace(/'/g, "\\'")}')">📷</button>
       <button class="remove-row-btn" onclick="document.getElementById('${id}').remove(); recalcTotals();">✕</button>
     </div>
     <div class="coverage-info" style="font-size:11px;color:var(--text-secondary);padding-left:2px;">
-      Cada caja cubre ${item.coverage} m² · ${fmtMoney(item.priceBox)}/caja · captura largo y ancho para calcular solo, o escribe las cajas directamente
+      Cada caja cubre ${item.coverage} m² · ${fmtMoney(item.priceBox)}/caja · captura largo y ancho, los m² totales, o escribe las cajas directamente
     </div>
   `;
   document.getElementById('productRows').appendChild(wrap);
@@ -1011,10 +1012,32 @@ function onLargoAnchoChange(id) {
   const ancho = parseFloat(row.querySelector('.p-ancho').value) || 0;
   const coverage = parseFloat(row.dataset.coverage) || 1;
   const m2 = largo * ancho;
+  const campoM2 = row.querySelector('.p-m2');
   if (m2 > 0) {
-    row.querySelector('.p-cajas').value = Math.ceil(m2 / coverage);
+    campoM2.value = round2(m2);
+    row.dataset.m2auto = '1';
+    row.querySelector('.p-cajas').value = Math.ceil(round2(m2) / coverage);
+  } else if (row.dataset.m2auto === '1') {
+    campoM2.value = '';
+    row.dataset.m2auto = '';
   }
   recalcTotals();
+}
+
+// m² totales escritos a mano (largo y ancho se quedan como están): sugiere las cajas.
+function onCoverageM2Change(id) {
+  const row = document.getElementById(id);
+  const m2 = parseFloat(row.querySelector('.p-m2').value) || 0;
+  const coverage = parseFloat(row.dataset.coverage) || 1;
+  row.dataset.m2auto = '';
+  if (m2 > 0) row.querySelector('.p-cajas').value = Math.ceil(round2(m2) / coverage);
+  recalcTotals();
+}
+// m² de una fila de cajas: lo del cuadro "m² total" (o largo × ancho si está vacío).
+function coverageM2(row) {
+  const v = parseFloat(row.querySelector('.p-m2').value) || 0;
+  if (v > 0) return round2(v);
+  return round2((parseFloat(row.querySelector('.p-largo').value) || 0) * (parseFloat(row.querySelector('.p-ancho').value) || 0));
 }
 
 function recalcTotals() {
@@ -1026,18 +1049,16 @@ function recalcTotals() {
   if (encabezado) encabezado.style.display = document.querySelector('#productRows > .product-row') ? '' : 'none';
 
   document.querySelectorAll('.product-row-coverage').forEach(row => {
-    const largo = parseFloat(row.querySelector('.p-largo').value) || 0;
-    const ancho = parseFloat(row.querySelector('.p-ancho').value) || 0;
     const coverage = parseFloat(row.dataset.coverage) || 1;
     const priceBox = parseFloat(row.dataset.priceBox) || 0;
     const cajas = parseFloat(row.querySelector('.p-cajas').value) || 0;
-    const m2 = largo * ancho;
+    const m2 = coverageM2(row);
     const importe = cajas * priceBox;
     row.querySelector('.p-import').value = importe ? fmtMoney(importe) : '';
     const infoEl = row.querySelector('.coverage-info');
     infoEl.textContent = m2 > 0
       ? `${m2.toFixed(2)} m² · ${cajas} caja(s) (cada caja cubre ${coverage} m²) · ${fmtMoney(priceBox)}/caja`
-      : `Cada caja cubre ${coverage} m² · ${fmtMoney(priceBox)}/caja · captura largo y ancho o escribe las cajas directamente`;
+      : `Cada caja cubre ${coverage} m² · ${fmtMoney(priceBox)}/caja · captura largo y ancho, los m² totales, o escribe las cajas directamente`;
     subtotal += importe;
   });
 
@@ -1135,9 +1156,9 @@ async function generateQuoteImpl() {
     const ancho = parseFloat(row.querySelector('.p-ancho').value) || 0;
     const cajas = parseFloat(row.querySelector('.p-cajas').value) || 0;
     const priceBox = parseFloat(row.dataset.priceBox) || 0;
-    const m2 = largo * ancho;
+    const m2 = coverageM2(row);
     if (name && cajas > 0) {
-      rows.push({ name, largo, ancho, m2: Number(m2.toFixed(2)), cajas, priceBox, importe: cajas * priceBox, coverage: parseFloat(row.dataset.coverage) || null, dept: row.dataset.dept || null, foto: productoFotos[name] || null });
+      rows.push({ name, largo, ancho, m2, cajas, priceBox, importe: cajas * priceBox, coverage: parseFloat(row.dataset.coverage) || null, dept: row.dataset.dept || null, foto: productoFotos[name] || null });
     }
   });
 
@@ -1919,6 +1940,8 @@ function addSavedItemRow(it) {
       const row = ultima('.product-row-coverage');
       if (it.largo) row.querySelector('.p-largo').value = it.largo;
       if (it.ancho) row.querySelector('.p-ancho').value = it.ancho;
+      row.querySelector('.p-m2').value = it.m2 || '';
+      row.dataset.m2auto = (it.largo && it.ancho && round2(it.largo * it.ancho) === it.m2) ? '1' : '';
       row.querySelector('.p-cajas').value = it.cajas;
       return;
     }
