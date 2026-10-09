@@ -24,7 +24,7 @@ let currentAccessToken = null;
 // inyección SQL. Lo que sí se arma con texto es la URL (tabla, id, orden): un id
 // como "1&id=gt.0" colaría un filtro extra y podría tocar más filas de las
 // previstas. Aquí se valida contra listas y patrones estrictos antes de pedir nada.
-const SB_TABLES = new Set(['clientes', 'cotizaciones', 'gastos', 'crm_leads', 'producto_fotos', 'directorio']);
+const SB_TABLES = new Set(['clientes', 'cotizaciones', 'gastos', 'crm_leads', 'producto_fotos', 'directorio', 'prospectos']);
 function sbTable(name) {
   if (!SB_TABLES.has(name)) throw new Error('Tabla no permitida: ' + name);
   return name;
@@ -265,7 +265,7 @@ function showToast(msg) {
 
 // Versión que se ve abajo a la izquierda (para comprobar que la app ya se actualizó).
 // Se cambia en cada publicación.
-const APP_VERSION = '9 oct 2026 · Directorio de contactos';
+const APP_VERSION = '9 oct 2026 · Directorio, precios y prospectos';
 
 function showApp() {
   document.getElementById('loginScreen').classList.add('hidden');

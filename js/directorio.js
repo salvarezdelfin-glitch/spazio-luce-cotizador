@@ -2,16 +2,24 @@
 // negocio: albañiles, electricistas, instaladores, proveedores, etc.
 //
 // - Los clientes siguen viviendo en la tabla `clientes` (la misma que llena el
-//   Cotizador); aquí solo se les agregan colonia, referencias y enlace de mapa.
+//   Cotizador); aquí solo se les agregan colonia y referencias.
 // - Todo lo demás vive en la tabla `directorio` (campo `tipo` libre, con sugerencias).
+// - "Comparar precios" pone lado a lado las tarifas (monto + unidad) de la gente del
+//   mismo oficio, incluyendo prospectos (js/prospectos.js).
 // Usa las funciones de app.js (sbSelect, sbInsert, sbUpdate, sbDelete, escapeHtml,
 // showToast, waPhone, runWithButtonLock, refreshAll).
 
 const DIR_TIPOS = ['Albañil', 'Electricista', 'Plomero', 'Instalador', 'Pintor', 'Carpintero',
-  'Herrero', 'Tablaroquero', 'Vidriero', 'Arquitecto / Diseñador', 'Proveedor', 'Otro'];
+  'Herrero', 'Tablaroquero', 'Vidriero', 'Arquitecto / Diseñador',
+  'Proveedor de iluminación', 'Proveedor de persianas y cortinas', 'Proveedor de pisos y muros',
+  'Proveedor de materiales', 'Proveedor', 'Otro'];
+// Unidades en las que se cotiza el trabajo; solo se comparan tarifas de la MISMA unidad.
+const DIR_UNIDADES = ['día', 'hora', 'm²', 'metro lineal', 'pieza', 'punto', 'obra', 'mes'];
+const dirUnidadesHtml = '<option value="">Unidad</option>' + DIR_UNIDADES.map(u => `<option value="${u}">por ${u}</option>`).join('');
 
 let dirFiltroTipo = '';      // '' = todos
 let dirBusqueda = '';
+let dirVista = 'contactos';  // 'contactos' | 'precios' | 'prospectos'
 let dirModalOrigen = 'directorio';   // 'directorio' | 'clientes'
 let dirModalId = null;
 
@@ -30,11 +38,28 @@ async function prepareDirectorio() {
   const raw = await sbSelectRaw('directorio', 'name.asc');
   if (raw) window.__directorioCache = raw;
   else showToast('No se pudo cargar el directorio — revisa tu conexión');
+  document.getElementById('dirTiposList').innerHTML = DIR_TIPOS.map(t => `<option value="${escapeHtml(t)}">`).join('');
+  const pros = await sbSelectRaw('prospectos', 'id.desc');
+  if (pros) window.__prospectosCache = pros;
+  prosActualizarAviso();
   if (!window.__clientesCache) {
     const cl = await sbSelectRaw('clientes', 'id.desc');
     if (cl) window.__clientesCache = cl;
   }
-  renderDirectorio();
+  setDirVista(dirVista);
+}
+
+function setDirVista(v) {
+  dirVista = v;
+  ['contactos', 'precios', 'prospectos'].forEach(x => {
+    document.getElementById('dirPanel-' + x).classList.toggle('hidden', x !== v);
+    document.getElementById('dirTab-' + x).classList.toggle('active', x === v);
+  });
+  document.getElementById('dirBtnsContactos').classList.toggle('hidden', v !== 'contactos');
+  document.getElementById('dirBtnsProspectos').classList.toggle('hidden', v !== 'prospectos');
+  if (v === 'contactos') renderDirectorio();
+  if (v === 'precios') renderPrecios();
+  if (v === 'prospectos') renderProspectos();
 }
 
 function dirTextoBusqueda(p) {
@@ -51,10 +76,10 @@ function onDirBusqueda(valor) {
   renderDirectorio(true);
 }
 
-function dirMapaUrl(p) {
-  if (p.maps_link && /^https?:\/\//i.test(p.maps_link)) return p.maps_link;
-  const dir = [p.direccion, p.colonia, p.ciudad].filter(Boolean).join(', ');
-  return dir ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(dir) : '';
+function dirTarifaTexto(p) {
+  const monto = p.tarifa_monto != null && p.tarifa_monto !== '' ? fmtMoney(p.tarifa_monto) + (p.tarifa_unidad ? ' por ' + escapeHtml(p.tarifa_unidad) : '') : '';
+  const detalle = p.tarifa ? escapeHtml(p.tarifa) : '';
+  return [monto ? '<b>' + monto + '</b>' : '', detalle].filter(Boolean).join(' · ');
 }
 
 function dirEstrellas(n) {
@@ -64,7 +89,6 @@ function dirEstrellas(n) {
 function dirTarjetaHtml(p) {
   const tel = String(p.telefono || '').replace(/\D/g, '');
   const tel2 = String(p.telefono2 || '').replace(/\D/g, '');
-  const mapa = dirMapaUrl(p);
   const direccion = [p.direccion, p.colonia, p.ciudad].filter(Boolean).map(escapeHtml).join(', ');
   const linea = (etq, v) => v ? `<div class="dir-line"><span>${etq}</span>${v}</div>` : '';
   return `
@@ -81,8 +105,7 @@ function dirTarjetaHtml(p) {
       ${p.email ? `<div class="dir-line"><span>Correo</span><a href="mailto:${escapeHtml(p.email)}">${escapeHtml(p.email)}</a></div>` : ''}
       ${linea('Dónde', direccion)}
       ${linea('Referencias', p.referencias ? escapeHtml(p.referencias) : '')}
-      ${mapa ? `<div class="dir-line"><span></span><a href="${escapeHtml(mapa)}" target="_blank" rel="noopener">📍 Ver en el mapa</a></div>` : ''}
-      ${linea('Tarifa', p.tarifa ? escapeHtml(p.tarifa) : '')}
+      ${linea('Tarifa', dirTarifaTexto(p))}
       ${linea('Notas', p.notas ? escapeHtml(p.notas) : '')}
     </div>`;
 }
@@ -118,8 +141,8 @@ function renderDirectorio(soloLista) {
 const DIR_CAMPOS = [
   ['dirNombre', 'name'], ['dirTipo', 'tipo'], ['dirEmpresa', 'empresa'], ['dirTelefono', 'telefono'],
   ['dirTelefono2', 'telefono2'], ['dirEmail', 'email'], ['dirDireccion', 'direccion'], ['dirColonia', 'colonia'],
-  ['dirCiudad', 'ciudad'], ['dirReferencias', 'referencias'], ['dirMaps', 'maps_link'], ['dirTarifa', 'tarifa'],
-  ['dirCalificacion', 'calificacion'], ['dirNotas', 'notas'],
+  ['dirCiudad', 'ciudad'], ['dirReferencias', 'referencias'], ['dirTarifaMonto', 'tarifa_monto'],
+  ['dirTarifaUnidad', 'tarifa_unidad'], ['dirTarifa', 'tarifa'], ['dirCalificacion', 'calificacion'], ['dirNotas', 'notas'],
 ];
 
 function openDirModal(origen, id) {
@@ -127,6 +150,7 @@ function openDirModal(origen, id) {
   dirModalId = id || null;
   const lista = origen === 'clientes' ? (window.__clientesCache || []) : (window.__directorioCache || []);
   const p = id ? lista.find(x => x.id === id) : null;
+  document.getElementById('dirTarifaUnidad').innerHTML = dirUnidadesHtml;
   DIR_CAMPOS.forEach(([el, campo]) => {
     document.getElementById(el).value = p && p[campo] != null ? p[campo] : '';
   });
@@ -162,10 +186,8 @@ async function saveDirContactoImpl() {
     colonia: v('dirColonia') || null,
     ciudad: v('dirCiudad') || null,
     referencias: v('dirReferencias') || null,
-    maps_link: v('dirMaps') || null,
     notas: v('dirNotas') || null,
   };
-  if (base.maps_link && !/^https?:\/\//i.test(base.maps_link)) { showToast('El enlace del mapa debe empezar con http:// o https://'); return; }
 
   let ok;
   if (dirModalOrigen === 'clientes') {
@@ -176,6 +198,8 @@ async function saveDirContactoImpl() {
       empresa: v('dirEmpresa') || null,
       telefono2: v('dirTelefono2') || null,
       tarifa: v('dirTarifa') || null,
+      tarifa_monto: v('dirTarifaMonto') === '' ? null : Math.max(0, parseFloat(v('dirTarifaMonto')) || 0),
+      tarifa_unidad: v('dirTarifaUnidad') || null,
       calificacion: parseInt(document.getElementById('dirCalificacion').value, 10) || null,
     });
     if (fila.tipo.toLowerCase() === 'cliente') { showToast('Los clientes se agregan con "+ Nuevo cliente"'); return; }
@@ -203,7 +227,7 @@ async function borrarDirContacto() {
 function exportDirectorioCsv() {
   const cols = [['Tipo', 'tipo'], ['Nombre', 'name'], ['Empresa', 'empresa'], ['Teléfono', 'telefono'], ['Teléfono 2', 'telefono2'],
     ['Correo', 'email'], ['Calle y número', 'direccion'], ['Colonia', 'colonia'], ['Ciudad', 'ciudad'], ['Referencias', 'referencias'],
-    ['Mapa', 'maps_link'], ['Tarifa', 'tarifa'], ['Calificación', 'calificacion'], ['Notas', 'notas']];
+    ['Tarifa (monto)', 'tarifa_monto'], ['Tarifa (unidad)', 'tarifa_unidad'], ['Tarifa (detalle)', 'tarifa'], ['Calificación', 'calificacion'], ['Notas', 'notas']];
   const esc = x => '"' + String(x == null ? '' : x).replace(/"/g, '""') + '"';
   // Evita que una celda que empiece como fórmula (=, @, o +/- seguido de letra) se ejecute en Excel;
   // un teléfono como +52 55… no se toca.
@@ -216,4 +240,65 @@ function exportDirectorioCsv() {
   a.href = url; a.download = 'directorio-spazio-luce.csv';
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+// ---------- Comparar precios ----------
+// Agrupa por oficio y, dentro, por unidad (no se mezcla "por día" con "por m²").
+// Incluye prospectos vivos (ni contratados ni descartados) para saber si conviene
+// más contratar a alguien nuevo que a quien ya está.
+function precioPersonas() {
+  const gente = (window.__directorioCache || []).map(d => ({
+    id: d.id, nombre: d.name, oficio: d.tipo, monto: Number(d.tarifa_monto), unidad: d.tarifa_unidad,
+    calificacion: d.calificacion, prospecto: false, telefono: d.telefono, detalle: d.tarifa,
+  }));
+  const pros = (window.__prospectosCache || [])
+    .filter(p => p.estatus !== 'Contratado' && p.estatus !== 'Descartado')
+    .map(p => ({
+      id: p.id, nombre: p.name, oficio: p.oficio, monto: Number(p.tarifa_monto), unidad: p.tarifa_unidad,
+      calificacion: null, prospecto: true, telefono: p.telefono, detalle: p.estatus,
+    }));
+  return gente.concat(pros).filter(x => x.monto > 0 && x.unidad);
+}
+
+function renderPrecios() {
+  const gente = precioPersonas();
+  const filtro = document.getElementById('preciosOficio').value;
+  const oficios = [...new Set(gente.map(g => g.oficio))].sort((a, b) => a.localeCompare(b, 'es'));
+  const sel = document.getElementById('preciosOficio');
+  sel.innerHTML = '<option value="">Todos los oficios</option>' + oficios.map(o => `<option value="${escapeHtml(o)}"${o === filtro ? ' selected' : ''}>${escapeHtml(o)}</option>`).join('');
+
+  const grupos = {};
+  gente.filter(g => !filtro || g.oficio === filtro).forEach(g => {
+    const k = g.oficio + '||' + g.unidad;
+    (grupos[k] = grupos[k] || { oficio: g.oficio, unidad: g.unidad, lista: [] }).lista.push(g);
+  });
+  const claves = Object.keys(grupos).sort((a, b) => a.localeCompare(b, 'es'));
+  document.getElementById('preciosList').innerHTML = claves.length ? claves.map(k => {
+    const gr = grupos[k];
+    const lista = gr.lista.slice().sort((a, b) => a.monto - b.monto);
+    const min = lista[0].monto;
+    const prom = lista.reduce((s, x) => s + x.monto, 0) / lista.length;
+    const mejorCal = Math.max(0, ...lista.map(x => x.calificacion || 0));
+    return `
+      <div class="panel" style="margin-bottom:14px;">
+        <h3>${escapeHtml(gr.oficio)} · precio por ${escapeHtml(gr.unidad)}</h3>
+        <div class="dir-sub" style="margin:-6px 0 10px;">${lista.length} ${lista.length === 1 ? 'opción' : 'opciones'} · promedio ${fmtMoney(prom)}</div>
+        ${lista.map((x, i) => {
+          const dif = i === 0 ? '' : '+' + Math.round((x.monto / min - 1) * 100) + '% vs. el más barato';
+          const etiquetas = [
+            i === 0 && lista.length > 1 ? '<span class="dir-tag dir-tag-verde">Más barato</span>' : '',
+            mejorCal > 0 && x.calificacion === mejorCal && lista.length > 1 ? '<span class="dir-tag dir-tag-oro">Mejor calificado</span>' : '',
+            x.prospecto ? '<span class="dir-tag">Prospecto · ' + escapeHtml(x.detalle) + '</span>' : '',
+          ].join('');
+          return `
+            <div class="quote-row">
+              <div>
+                <div class="quote-client">${escapeHtml(x.nombre)} ${dirEstrellas(x.calificacion)} ${etiquetas}</div>
+                <div class="quote-meta">${dif}${!x.prospecto && x.detalle ? (dif ? ' · ' : '') + escapeHtml(x.detalle) : ''}</div>
+              </div>
+              <div class="quote-row-actions"><strong>${fmtMoney(x.monto)}</strong></div>
+            </div>`;
+        }).join('')}
+      </div>`;
+  }).join('') : '<div class="empty-state">Para comparar, captura la tarifa (monto y unidad) en cada contacto o prospecto. Solo se comparan precios de la misma unidad.</div>';
 }

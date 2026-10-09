@@ -339,3 +339,13 @@
   .dir-line a:hover { text-decoration: underline; }
   .dir-stars { color: var(--gold); font-size: 12px; letter-spacing: 1px; margin-left: 6px; }
   .dir-stars-off { color: var(--border); }
+
+  /* Directorio: pestañas, etiquetas y avisos */
+  .dir-tabs { display: flex; gap: 6px; margin-bottom: 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .dir-tab { background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary); font-size: 14px; font-weight: 700; padding: 10px 14px; margin-bottom: -1px; }
+  .dir-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .dir-tag { display: inline-block; font-size: 10px; font-weight: 700; color: var(--text-secondary); border: 1px solid var(--border); border-radius: 999px; padding: 0 7px; margin-left: 6px; vertical-align: middle; }
+  .dir-tag-verde { color: var(--green); border-color: var(--green); }
+  .dir-tag-oro { color: var(--gold); border-color: var(--gold); }
+  .dir-aviso { color: var(--gold); opacity: 1 !important; }
+  .pros-estatus { background: var(--panel-alt); color: var(--text); }

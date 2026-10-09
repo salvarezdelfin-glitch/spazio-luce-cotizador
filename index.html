@@ -163,17 +163,69 @@
 
     <div id="view-directorio" class="hidden">
       <div class="topbar">
-        <div><h2>Directorio</h2><div class="sub">Clientes, albañiles, electricistas, instaladores y proveedores · teléfono, dónde viven y referencias</div></div>
+        <div><h2>Directorio</h2><div class="sub">Clientes, oficios, proveedores y prospectos · teléfono, dónde viven, precios y referencias</div></div>
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <button class="btn-ghost-sm" onclick="exportDirectorioCsv()">⬇️ Exportar CSV</button>
-          <button class="btn-ghost-sm" onclick="openDirModal('clientes', null)">+ Nuevo cliente</button>
-          <button class="btn-accent-sm" style="width:auto;" onclick="openDirModal('directorio', null)">+ Nuevo contacto</button>
+          <div id="dirBtnsContactos" style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn-ghost-sm" onclick="exportDirectorioCsv()">⬇️ Exportar CSV</button>
+            <button class="btn-ghost-sm" onclick="openDirModal('clientes', null)">+ Nuevo cliente</button>
+            <button class="btn-accent-sm" style="width:auto;" onclick="openDirModal('directorio', null)">+ Nuevo contacto</button>
+          </div>
+          <div id="dirBtnsProspectos" class="hidden">
+            <button class="btn-accent-sm" style="width:auto;" onclick="openProsModal(null)">+ Nuevo prospecto</button>
+          </div>
         </div>
       </div>
-      <div class="input-wrap" style="margin-bottom:12px;"><input id="dirBuscar" type="search" placeholder="Buscar por nombre, oficio, teléfono, colonia, calle, referencia…" oninput="onDirBusqueda(this.value)" autocomplete="off" /></div>
-      <div class="catalog-groups" id="dirChips"></div>
-      <div class="dir-count" id="dirCount"></div>
-      <div id="dirList" class="dir-list"></div>
+      <div class="dir-tabs">
+        <button class="dir-tab active" id="dirTab-contactos" onclick="setDirVista('contactos')">Contactos</button>
+        <button class="dir-tab" id="dirTab-precios" onclick="setDirVista('precios')">Comparar precios</button>
+        <button class="dir-tab" id="dirTab-prospectos" onclick="setDirVista('prospectos')">Prospectos</button>
+      </div>
+
+      <div id="dirPanel-contactos">
+        <div class="input-wrap" style="margin-bottom:12px;"><input id="dirBuscar" type="search" placeholder="Buscar por nombre, oficio, teléfono, colonia, calle, referencia…" oninput="onDirBusqueda(this.value)" autocomplete="off" /></div>
+        <div class="catalog-groups" id="dirChips"></div>
+        <div class="dir-count" id="dirCount"></div>
+        <div id="dirList" class="dir-list"></div>
+      </div>
+
+      <div id="dirPanel-precios" class="hidden">
+        <div class="catalog-note">Compara lo que cobra cada quien por el mismo trabajo y la misma unidad. Entran los contactos del directorio y los prospectos que siguen vivos. El más barato y el mejor calificado salen marcados; el precio no lo es todo, revisa también las estrellas.</div>
+        <div class="input-wrap" style="margin-bottom:14px; max-width:320px;"><select id="preciosOficio" onchange="renderPrecios()"><option value="">Todos los oficios</option></select></div>
+        <div id="preciosList"></div>
+      </div>
+
+      <div id="dirPanel-prospectos" class="hidden">
+        <div class="catalog-note">Gente nueva que quieres contratar. Avanza a cada uno por etapas; con "Contratar" pasa al Directorio con su precio.</div>
+        <div class="catalog-groups" id="prosChips"></div>
+        <div id="prosList" class="dir-list"></div>
+      </div>
+    </div>
+
+    <div id="prosModal" class="hidden" style="position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:200; display:flex; align-items:center; justify-content:center; padding:20px;">
+      <div class="card" style="max-width:520px; width:100%; max-height:90vh; overflow-y:auto;">
+        <h1 style="font-size:17px;" id="prosModalTitle">Prospecto</h1>
+        <div class="field"><label>Nombre</label><div class="input-wrap"><input id="prosNombre" maxlength="120" /></div></div>
+        <div class="form-row">
+          <div class="field"><label>Oficio o tipo</label><div class="input-wrap"><input id="prosOficio" list="dirTiposList" placeholder="Albañil, Electricista, Proveedor de…" /></div></div>
+          <div class="field"><label>Teléfono / WhatsApp</label><div class="input-wrap"><input id="prosTelefono" type="tel" /></div></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>Zona donde trabaja</label><div class="input-wrap"><input id="prosZona" placeholder="Naucalpan, Coyoacán…" /></div></div>
+          <div class="field"><label>Dónde lo encontré</label><div class="input-wrap"><input id="prosFuente" list="prosFuentesList" /></div><datalist id="prosFuentesList"></datalist></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>Etapa</label><div class="input-wrap"><select id="prosEstatus"></select></div></div>
+          <div class="field"><label>Fecha de seguimiento</label><div class="input-wrap"><input id="prosSeguimiento" type="date" /></div></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>Cuánto cobra ($)</label><div class="input-wrap"><input id="prosTarifaMonto" type="number" min="0" step="0.01" placeholder="0.00" /></div></div>
+          <div class="field"><label>Por</label><div class="input-wrap"><select id="prosTarifaUnidad"></select></div></div>
+        </div>
+        <div class="field"><label>Notas</label><div class="input-wrap"><textarea id="prosNotas" rows="3" style="width:100%; resize:vertical;"></textarea></div></div>
+        <button class="btn-primary" id="prosGuardarBtn" onclick="saveProspecto()">Guardar</button>
+        <button class="link-btn" style="display:block; margin:14px auto 0;" onclick="closeProsModal()">Cerrar</button>
+        <button class="link-btn hidden" id="prosBorrarBtn" style="display:block; margin:8px auto 0; color:var(--red);" onclick="borrarProspecto()">Eliminar prospecto</button>
+      </div>
     </div>
 
     <div id="dirModal" class="hidden" style="position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:200; display:flex; align-items:center; justify-content:center; padding:20px;">
@@ -195,9 +247,12 @@
           <div class="field"><label>Ciudad / municipio</label><div class="input-wrap"><input id="dirCiudad" /></div></div>
         </div>
         <div class="field"><label>Referencias (entre qué calles, color de casa, cerca de…)</label><div class="input-wrap"><textarea id="dirReferencias" rows="2" style="width:100%; resize:vertical;"></textarea></div></div>
-        <div class="field"><label>Enlace de Google Maps (opcional)</label><div class="input-wrap"><input id="dirMaps" placeholder="https://maps.app.goo.gl/…" /></div></div>
         <div class="form-row solo-oficio">
-          <div class="field"><label>Tarifa (ej. $800 por día, $120 por m²)</label><div class="input-wrap"><input id="dirTarifa" /></div></div>
+          <div class="field"><label>Cuánto cobra ($)</label><div class="input-wrap"><input id="dirTarifaMonto" type="number" min="0" step="0.01" placeholder="0.00" /></div></div>
+          <div class="field"><label>Por</label><div class="input-wrap"><select id="dirTarifaUnidad"></select></div></div>
+        </div>
+        <div class="form-row solo-oficio">
+          <div class="field"><label>Detalle de la tarifa (incluye material, mínimo…)</label><div class="input-wrap"><input id="dirTarifa" /></div></div>
           <div class="field"><label>Calificación</label><div class="input-wrap"><select id="dirCalificacion"><option value="">Sin calificar</option><option value="5">★★★★★ Excelente</option><option value="4">★★★★ Muy bueno</option><option value="3">★★★ Regular</option><option value="2">★★ Malo</option><option value="1">★ No volver a llamar</option></select></div></div>
         </div>
         <div class="field"><label>Notas</label><div class="input-wrap"><textarea id="dirNotas" rows="3" style="width:100%; resize:vertical;"></textarea></div></div>
@@ -478,6 +533,7 @@
 <script src="js/importers.js"></script>
 <script src="js/app.js"></script>
 <script src="js/directorio.js"></script>
+<script src="js/prospectos.js"></script>
 <script src="js/guardar-en-carpeta.js" data-app="spazio-luce" data-cliente="client" data-carpeta-sugerida="Documentos\Spazio Luce\02 Clientes y Cotizaciones"></script>
 <script>
   if ('serviceWorker' in navigator) {
