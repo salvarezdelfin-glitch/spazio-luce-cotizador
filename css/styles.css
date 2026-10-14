@@ -268,6 +268,17 @@
   .recibo-card .condiciones { font-size: 11px; color: #666; font-style: italic; margin: 22px 32px 0; line-height: 1.7; }
   .recibo-card .firma-row { display: flex; justify-content: space-between; margin: 50px 32px 0; font-size: 12px; }
   .recibo-card .firma-row div { border-top: 1px solid #333; padding-top: 6px; width: 44%; text-align: center; }
+  .recibo-info-3 { grid-template-columns: 1.6fr 1.6fr .8fr; }
+  .recibo-info-3 .info-label { display: block; font-size: 10px; font-weight: 800; letter-spacing: .08em; color: #B8912E; margin-bottom: 3px; }
+  .recibo-info-3 .info-value { font-size: 13px; font-weight: 600; color: #111; overflow-wrap: anywhere; }
+  .recibo-cierre { break-inside: avoid; page-break-inside: avoid; }
+  .recibo-card .condiciones-bloque { margin: 24px 32px 0; font-size: 12px; color: #333; line-height: 1.6; }
+  .recibo-card .cond-titulo { font-weight: 800; font-size: 12px; letter-spacing: .08em; border-bottom: 2px solid #C9A227; padding-bottom: 4px; margin-bottom: 8px; }
+  .recibo-card .cond-sub { font-weight: 700; font-size: 11px; letter-spacing: .06em; color: #B8912E; }
+  .recibo-card .firma-nombres { margin-top: 64px; }
+  .recibo-card .firma-nombres div { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .recibo-card .firma-nombre { font-weight: 700; font-size: 12px; color: #111; overflow-wrap: anywhere; }
+  .recibo-card .firma-rol { font-size: 10px; letter-spacing: .08em; color: #777; }
   .recibo-footer {
     background: #111;
     color: #eee;

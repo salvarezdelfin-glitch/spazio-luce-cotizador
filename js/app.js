@@ -265,7 +265,7 @@ function showToast(msg) {
 
 // Versión que se ve abajo a la izquierda (para comprobar que la app ya se actualizó).
 // Se cambia en cada publicación.
-const APP_VERSION = '9 oct 2026 · Directorio por grupos';
+const APP_VERSION = '14 oct 2026 · Cotización con ALCANCE y firmas';
 
 function showApp() {
   document.getElementById('loginScreen').classList.add('hidden');
@@ -1254,25 +1254,58 @@ function renderRecibo(quote, fecha) {
   }
 }
 
+const FIRMANTE_SPAZIO_LUCE = 'Juan Jose Olimpo Alvarez Jimenez';
+const ALCANCE_TEXTO = 'Todos los trabajos no incluidos en este presupuesto serán motivo de cotización por separado.';
+
+// Bloque CLIENTE · PROYECTO · FECHA del formato de cotización.
+function reciboInfoHtml(quote, fechaObj, fmt) {
+  return `
+    <div class="recibo-info recibo-info-3">
+      <div><span class="info-label">CLIENTE</span><div class="info-value">${escapeHtml(quote.client)}</div></div>
+      <div><span class="info-label">PROYECTO</span><div class="info-value">${escapeHtml(quote.address || '—')}</div></div>
+      <div><span class="info-label">FECHA</span><div class="info-value">${fmt(fechaObj)}</div></div>
+    </div>`;
+}
+
+// Cierre del formato: solo ALCANCE + firma de cada persona (cliente y Spazio Luce).
+function reciboCierreHtml(quote) {
+  return `
+    <div class="recibo-cierre">
+      ${quote.note ? `<div class="condiciones" style="margin-top:14px;"><b>NOTA:</b> ${escapeHtml(quote.note)}</div>` : ''}
+      <div class="condiciones-bloque">
+        <div class="cond-titulo">CONDICIONES</div>
+        <div class="cond-sub">ALCANCE</div>
+        <div class="cond-texto">${ALCANCE_TEXTO}</div>
+      </div>
+      <div class="firma-row firma-nombres">
+        <div><span class="firma-nombre">${escapeHtml(quote.client)}</span><span class="firma-rol">FIRMA · CLIENTE</span></div>
+        <div><span class="firma-nombre">${FIRMANTE_SPAZIO_LUCE}</span><span class="firma-rol">FIRMA · SPAZIO LUCE</span></div>
+      </div>
+    </div>`;
+}
+
 // Formato "Nota de Cobro" normal, para cotizaciones armadas desde el catálogo de productos.
 function renderReciboProductos(quote, fechaObj, fmt, contactoLine) {
   // Solo la familia ("Persianas · Screen" → "Persianas"), sin repetir
   const deptTags = [...new Set(quote.items.map(it => (it.dept || '').split(' · ')[0].trim()).filter(Boolean))];
   const tagline = deptTags.length ? deptTags.join(' · ') : 'SPAZIO LUCE';
 
-  const rowsHtml = quote.items.map(it => {
+  const rowsHtml = quote.items.map((it, idx) => {
     const isCoverage = it.cajas != null;
     const isArea = !isCoverage && it.m2 != null;
-    const cantLabel = isCoverage ? `${it.cajas} caja(s)` : isArea ? `${it.m2} m²` : it.qty;
+    const unLabel = isCoverage ? 'caja' : isArea ? 'm²' : (it.unit || 'pza');
+    const cantLabel = isCoverage ? it.cajas : isArea ? it.m2 : it.qty;
     const priceLabel = isCoverage ? it.priceBox : isArea ? it.pricePerM2 : it.price;
     const subLabel = isCoverage ? `${it.largo}m × ${it.ancho}m = ${it.m2} m²` : isArea ? `${it.ancho && it.alto && round2(it.ancho * it.alto) === it.m2 ? it.ancho + 'm × ' + it.alto + 'm' : it.m2 + ' m² (medida total)'}${it.installFee ? ' + ' + fmtMoney(it.installFee) + ' instalación' : ''}` : '';
     return `<tr>
+      <td style="width:30px;color:#999;">${idx + 1}</td>
       <td>
         <span class="item-name">${escapeHtml(it.name)}</span>
         ${subLabel ? `<span class="item-sub">${subLabel}</span>` : ''}
         ${it.foto ? `<div class="item-photo-box"><img src="${escapeHtml(it.foto)}" alt="${escapeHtml(it.name)}" /></div>` : ''}
       </td>
-      <td>${cantLabel}</td>
+      <td style="width:46px;">${unLabel}</td>
+      <td style="width:56px;">${cantLabel}</td>
       <td>${fmtMoney(priceLabel)}</td>
       <td><strong>${fmtMoney(it.importe)}</strong></td>
     </tr>`;
@@ -1294,19 +1327,10 @@ function renderReciboProductos(quote, fechaObj, fmt, contactoLine) {
     </div>
     <div class="recibo-divider"></div>
 
-    <div class="recibo-info">
-      <div>
-        <div><b>Cliente:</b> ${escapeHtml(quote.client)}</div>
-        <div><b>Contacto:</b> ${contactoLine}</div>
-      </div>
-      <div>
-        <div><b>Validez:</b> 15 días</div>
-        <div><b>Entrega:</b> A convenir</div>
-      </div>
-    </div>
+    ${reciboInfoHtml(quote, fechaObj, fmt)}
 
     <table>
-      <thead><tr><th>Descripción</th><th>Cant.</th><th>P. Unit.</th><th>Importe</th></tr></thead>
+      <thead><tr><th>No.</th><th>Concepto</th><th>Un</th><th>Cant.</th><th>P. Unitario</th><th>Importe</th></tr></thead>
       <tbody>${rowsHtml}</tbody>
     </table>
 
@@ -1319,19 +1343,7 @@ function renderReciboProductos(quote, fechaObj, fmt, contactoLine) {
       <div class="grand-amount">${fmtMoney(quote.total)}</div>
     </div>
 
-    ${quote.note ? `<div class="condiciones" style="margin-top:14px;"><b>NOTA:</b> ${escapeHtml(quote.note)}</div>` : ''}
-
-    <div class="condiciones">
-      * Precios preferenciales de Spazio Luce sobre catálogo general.<br/>
-      * Precios sujetos a cambio sin previo aviso. Cotización válida por 15 días naturales.<br/>
-      * No incluye instalación ni envío, salvo que se indique lo contrario.<br/>
-      * Se solicita 50% de anticipo para apartar mercancía o iniciar pedido especial; el resto se liquida contra entrega.
-    </div>
-
-    <div class="firma-row">
-      <div>Autoriza (Spazio Luce)</div>
-      <div>Acepta (Cliente)</div>
-    </div>
+    ${reciboCierreHtml(quote)}
 
     <div class="recibo-footer">
       <div class="brand">SPAZIO LUCE</div>
@@ -1356,10 +1368,11 @@ function renderRecibopresupuesto(quote, fechaObj, fmt, contactoLine) {
     sections.push({ name: sec, items: quote.items.filter(it => (it.section || 'GENERAL') === sec) });
   });
 
+  let numero = 0;
   const sectionsHtml = sections.map(sec => {
-    const rows = sec.items.map((it, i) => `
+    const rows = sec.items.map((it) => `
       <tr>
-        <td style="width:26px;color:#999;">${i + 1}</td>
+        <td style="width:26px;color:#999;">${++numero}</td>
         <td>${escapeHtml(it.name)}</td>
         <td style="width:50px;">${escapeHtml(it.unit || '—')}</td>
         <td style="width:50px;">${it.qty}</td>
@@ -1370,7 +1383,7 @@ function renderRecibopresupuesto(quote, fechaObj, fmt, contactoLine) {
     return `
       <div class="presupuesto-section-bar">${sec.name.toUpperCase()}</div>
       <table>
-        <thead><tr><th>#</th><th>Concepto</th><th>Un</th><th>Cant</th><th>P.U.</th><th>Importe</th></tr></thead>
+        <thead><tr><th>No.</th><th>Concepto</th><th>Un</th><th>Cant.</th><th>P. Unitario</th><th>Importe</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     `;
@@ -1392,20 +1405,9 @@ function renderRecibopresupuesto(quote, fechaObj, fmt, contactoLine) {
     </div>
     <div class="recibo-divider"></div>
 
-    <div class="recibo-info">
-      <div>
-        <div><b>Proyecto:</b> ${escapeHtml(quote.address || '—')}</div>
-        <div><b>Cliente:</b> ${escapeHtml(quote.client)}</div>
-      </div>
-      <div>
-        <div><b>Contacto:</b> ${contactoLine}</div>
-        <div><b>Validez:</b> 15 días</div>
-      </div>
-    </div>
+    ${reciboInfoHtml(quote, fechaObj, fmt)}
 
     ${sectionsHtml}
-
-    ${quote.note ? `<div class="condiciones" style="margin-top:14px;"><b>NOTA:</b> ${escapeHtml(quote.note)}</div>` : ''}
 
     <div class="recibo-totals">
       <div>Subtotal: ${fmtMoney(quote.subtotal)}</div>
@@ -1415,14 +1417,7 @@ function renderRecibopresupuesto(quote, fechaObj, fmt, contactoLine) {
       <div class="grand-amount">${fmtMoney(quote.total)}</div>
     </div>
 
-    <div class="condiciones">
-      * Cotización válida por 15 días naturales a partir de la fecha de emisión.
-    </div>
-
-    <div class="firma-row">
-      <div>Autoriza (Spazio Luce)</div>
-      <div>Acepta (Cliente)</div>
-    </div>
+    ${reciboCierreHtml(quote)}
 
     <div class="recibo-footer">
       <div class="brand">SPAZIO LUCE</div>
