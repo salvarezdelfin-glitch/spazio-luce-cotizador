@@ -265,7 +265,7 @@ function showToast(msg) {
 
 // Versión que se ve abajo a la izquierda (para comprobar que la app ya se actualizó).
 // Se cambia en cada publicación.
-const APP_VERSION = '22 oct 2026 · WPC Desigual a $1,550';
+const APP_VERSION = '22 oct 2026 · WPC Desigual de vuelta a $1,467.91';
 
 function showApp() {
   document.getElementById('loginScreen').classList.add('hidden');

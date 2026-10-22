@@ -307,7 +307,7 @@ const CATALOG = {
   "Muro Interior y Placas PVC/PU": [
     { name: "WPC Muro Interior Serie Clásica (12 colores, caja 6.496 m²)", coverage: 6.496, priceM2: 306.57, priceBox: 1991.49, labM2: 185.00, labBox: 1201.76 },
     { name: "WPC Muro Interior Serie Nueva (6 colores, caja 6.496 m²)", coverage: 6.496, priceM2: 323.14, priceBox: 2099.14, labM2: 195.00, labBox: 1266.72 },
-    { name: "WPC Muro Interior Desigual (5 colores, caja 4.321 m²)", coverage: 4.321, priceM2: 358.71, priceBox: 1550.00, labM2: 205.00, labBox: 885.81 },
+    { name: "WPC Muro Interior Desigual (5 colores, caja 4.321 m²)", coverage: 4.321, priceM2: 339.71, priceBox: 1467.91, labM2: 205.00, labBox: 885.81 },
     { name: "WPC Muro Interior Media Luna (4 colores, 152 mm, caja 6.171 m²)", coverage: 6.171, priceM2: 329.77, priceBox: 2035.02, labM2: 199.00, labBox: 1228.03 },
     { name: "WPC Muro Interior Media Luna (5 colores, 159 mm, caja 4.611 m²)", coverage: 4.611, priceM2: 329.77, priceBox: 1520.58, labM2: 199.00, labBox: 917.59 },
     { name: "Clip-M WPC Muro Interior", price: 2.49, lab: 1.50 },
