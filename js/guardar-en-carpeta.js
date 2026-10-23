@@ -206,18 +206,31 @@
     pintarEstado();
   }
 
-  // Envuelve renderRecibo (se usa al generar y al reabrir con "Ver") para
-  // quedarse con la cotizacion y guardarla sola si ya hay permiso.
+  // Se llama cada vez que se muestra un recibo (generar, "Ver", editar, presupuesto):
+  // se queda con la cotizacion, la guarda sola si ya hay permiso y adelanta el PDF
+  // para que "Enviar por WhatsApp" lo tenga listo. Lo invoca wireReciboButtons (app.js),
+  // el unico punto por el que pasan TODAS las rutas; antes solo se enganchaba
+  // renderRecibo y los presupuestos recien generados lo saltaban: "Guardar en carpeta"
+  // no hacia nada.
+  let ultimoAviso = { quote: null, t: 0 };
+  function alMostrarRecibo(quote) {
+    if (!quote) return;
+    if (ultimoAviso.quote === quote && Date.now() - ultimoAviso.t < 1500) return; // ya avisado por la otra via
+    ultimoAviso = { quote, t: Date.now() };
+    ultimaCotizacion = quote;
+    montarUi();
+    pintarEstado();
+    setTimeout(() => guardar(false).catch(err => console.warn('Guardado automatico:', err)), 400);
+    setTimeout(() => { if (quote === ultimaCotizacion) pdfDe(quote).promesa.catch(err => console.warn('PDF previo:', err)); }, 700);
+  }
+  window.alMostrarRecibo = alMostrarRecibo;
+
+  // Respaldo: renderRecibo tambien avisa (por si wireReciboButtons no se llamara).
   const original = window.renderRecibo;
   if (typeof original === 'function') {
     window.renderRecibo = function (quote) {
       const r = original.apply(this, arguments);
-      ultimaCotizacion = quote;
-      montarUi();
-      pintarEstado();
-      setTimeout(() => guardar(false).catch(err => console.warn('Guardado automatico:', err)), 400);
-      // Adelantar el PDF para que "Enviar por WhatsApp" lo tenga listo al tocarlo.
-      setTimeout(() => { if (quote === ultimaCotizacion) pdfDe(quote).promesa.catch(err => console.warn('PDF previo:', err)); }, 700);
+      alMostrarRecibo(quote);
       return r;
     };
   }

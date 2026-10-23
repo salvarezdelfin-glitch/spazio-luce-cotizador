@@ -1532,6 +1532,8 @@ async function enviarCotizacionPorWhatsApp(quote, boton) {
 }
 
 function wireReciboButtons(quote) {
+  // Avisa a guardar-en-carpeta.js qué cotización está en pantalla (también la de Presupuestos, que no pasa por renderRecibo).
+  if (typeof window.alMostrarRecibo === 'function') window.alMostrarRecibo(quote);
   const waMsg = encodeURIComponent(mensajeCotizacion(quote, false));
   const phoneDigits = waPhone(quote.phone);
   const botonWa = document.getElementById('reciboWhatsBtn');
