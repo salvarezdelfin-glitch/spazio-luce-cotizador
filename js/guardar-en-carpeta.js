@@ -90,18 +90,33 @@
     return { subcarpeta: cliente, archivo: `Cotizacion ${folio} - ${cliente}.pdf` };
   }
 
-  async function generarPdfNuevo() {
+  async function generarPdfNuevo(q) {
     await cargarHtml2pdf();
     const el = document.getElementById('reciboCard');
+    const rotulo = 'Cotización' + (q && q.folio ? ' ' + q.folio : '') + (q && q.client ? ' · ' + q.client : '');
     return window.html2pdf().set({
-      margin: [8, 8, 8, 8],
+      margin: [10, 8, 16, 8],
       image: { type: 'jpeg', quality: 0.96 },
       // scrollX/scrollY en 0: si la ventana está desplazada (se genera la cotización desde abajo del
       // formulario), html2canvas dibuja la hoja corrida: hojas en blanco, renglones y firmas cortados.
       html2canvas: { scale: 2, useCORS: true, backgroundColor: null, scrollX: 0, scrollY: 0 },
       jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
-      pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.recibo-header', '.recibo-totals'] },
-    }).from(el).outputPdf('blob');
+      // Lo que no debe partirse entre dos páginas: renglones, encabezados, total y todo el cierre
+      // (condiciones y firmas pasan juntos a la página siguiente si no caben).
+      pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.recibo-header', '.recibo-info', '.presupuesto-section-bar', '.recibo-totals', '.recibo-cierre', '.condiciones-bloque', '.firma-row', '.recibo-footer'] },
+    }).from(el).toPdf().get('pdf').then(pdf => {
+      // Pie de cada página: cotización y cliente a la izquierda, "Página X de N" a la derecha.
+      const n = pdf.internal.getNumberOfPages();
+      const ancho = pdf.internal.pageSize.getWidth();
+      const alto = pdf.internal.pageSize.getHeight();
+      for (let i = 1; i <= n; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(8);
+        pdf.setTextColor(130, 130, 130);
+        pdf.text(rotulo, 8, alto - 7);
+        pdf.text('Página ' + i + ' de ' + n, ancho - 8, alto - 7, { align: 'right' });
+      }
+    }).outputPdf('blob');
   }
 
   // Un solo PDF por cotizacion: lo comparten "Guardar en carpeta" y el envio por
@@ -111,7 +126,7 @@
   function pdfDe(q) {
     if (!pdfCache || pdfCache.quote !== q) {
       const entrada = { quote: q, listo: null };
-      entrada.promesa = generarPdfNuevo().then(blob => {
+      entrada.promesa = generarPdfNuevo(q).then(blob => {
         entrada.listo = blob;
         return blob;
       }).catch(err => {

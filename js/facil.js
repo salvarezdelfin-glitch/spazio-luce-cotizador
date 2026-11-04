@@ -69,3 +69,22 @@ function faltaCampo(id, mensaje) {
 // ---------- Ayuda ----------
 function abrirAyuda() { document.getElementById('ayudaModal').classList.remove('hidden'); }
 function cerrarAyuda() { document.getElementById('ayudaModal').classList.add('hidden'); }
+
+// ---------- Ver / imprimir el PDF ----------
+// Se abre el mismo PDF que se guarda en la carpeta y se manda por WhatsApp (con número de página,
+// márgenes y sin cortes), en vez de imprimir la pantalla, que podía salir con hojas en blanco.
+async function verPdfCotizacion() {
+  if (!window.spazioPdf) { window.print(); return; }
+  const ventana = window.open('', '_blank');   // se abre ya, dentro del clic, para que no lo bloquee el navegador
+  try {
+    showToast('Preparando el PDF…');
+    const archivo = await window.spazioPdf.obtener();
+    const url = URL.createObjectURL(archivo);
+    if (ventana) ventana.location.href = url; else window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 120000);
+  } catch (err) {
+    console.error(err);
+    if (ventana) ventana.close();
+    window.print();
+  }
+}
