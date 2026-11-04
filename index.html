@@ -413,14 +413,14 @@
         <button class="add-row-btn" onclick="addPresuRow()">+ Agregar renglón manual</button>
 
         <div class="margen-box no-print">
-          <div class="margen-title">¿Los precios son los originales del proveedor?</div>
+          <div class="margen-title">Ajuste de precios</div>
           <div class="margen-row">
             <div class="input-wrap margen-pct"><input id="margenPct" type="number" min="1" max="99" step="1" value="30" /></div><span>%</span>
             <div class="input-wrap margen-modo"><select id="margenModo">
-              <option value="venta">ganancia sobre la venta (÷ 0.70)</option>
-              <option value="sumar">sumar al precio (× 1.30)</option>
+              <option value="venta">÷ 0.70</option>
+              <option value="sumar">× 1.30</option>
             </select></div>
-            <button class="btn-accent-sm" style="width:auto;" onclick="aplicarMargenPresupuesto()">Sumar a los precios</button>
+            <button class="btn-accent-sm" style="width:auto;" onclick="aplicarMargenPresupuesto()">Aplicar a los precios</button>
             <button class="btn-ghost-sm hidden" id="margenDeshacerBtn" onclick="deshacerMargenPresupuesto()">↩ Deshacer</button>
           </div>
         </div>

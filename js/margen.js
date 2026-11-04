@@ -26,9 +26,9 @@ function resetMargenPresupuesto() {
 
 function aplicarMargenPresupuesto() {
   const factor = margenFactor();
-  if (!factor) { showToast('Escribe un porcentaje válido (por ejemplo 30)'); return; }
-  const pct = document.getElementById('margenPct').value;
-  if (margenAplicado && !confirm('Ya sumaste ganancia a estos precios. ¿Sumarla otra vez sobre los precios actuales? (Si fue sin querer, usa "Deshacer")')) return;
+  if (!factor) { showToast('Escribe un porcentaje válido'); return; }
+  
+  if (margenAplicado && !confirm('Ya aplicaste el ajuste a estos precios. ¿Aplicarlo otra vez sobre los precios actuales? (Si fue sin querer, usa "Deshacer")')) return;
 
   const hechos = [];
   document.querySelectorAll('.presu-row').forEach(row => {
@@ -43,7 +43,7 @@ function aplicarMargenPresupuesto() {
   margenAplicado = hechos;
   document.getElementById('margenDeshacerBtn').classList.remove('hidden');
   recalcPresuTotals();
-  showToast('Se sumó ' + pct + ' % a ' + hechos.length + ' precio(s)');
+  showToast('Ajuste aplicado a ' + hechos.length + ' precio(s)');
 }
 
 function deshacerMargenPresupuesto() {
@@ -56,5 +56,5 @@ function deshacerMargenPresupuesto() {
   });
   resetMargenPresupuesto();
   recalcPresuTotals();
-  showToast('Precios devueltos al original (' + n + ')');
+  showToast('Ajuste deshecho (' + n + ')');
 }
