@@ -90,54 +90,215 @@
     return { subcarpeta: cliente, archivo: `Cotizacion ${folio} - ${cliente}.pdf` };
   }
 
+  // ---------------------------------------------------------------------------
+  // PDF con paginación propia. Antes se dejaba que html2pdf cortara la hoja donde cayera y a veces
+  // partía una firma o una fila entre dos páginas, o dejaba una hoja en blanco. Ahora se mide cada
+  // bloque de la cotización (encabezado, cada renglón, total, cada condición, firmas) y los cortes
+  // solo caen ENTRE bloques: nada se parte. Cada página se fotografía por separado y se arma el PDF
+  // con pie fijo (barra negra + "Página X de N") y, desde la 2.ª hoja, una cabecera corta.
+  // ---------------------------------------------------------------------------
+  const HOJA = { ancho: 215.9, alto: 279.4, arriba: 10, abajo: 16, lado: 8 };   // carta, en mm
+  const ESCENARIO_PX = 760;                                                      // ancho de la hoja en pantalla
+
+  // Bloques que no se parten; cada uno es una lista de elementos que viajan juntos.
+  function unidadesDeHoja(copia) {
+    const unidades = [];
+    const nueva = (els, opts) => {
+      const lista = els.filter(Boolean);
+      if (lista.length) unidades.push(Object.assign({ els: lista }, opts || {}));
+    };
+    let barra = null;
+    Array.from(copia.children).forEach(h => {
+      const cl = h.classList;
+      if (cl.contains('recibo-divider') || cl.contains('recibo-total-bar') || cl.contains('recibo-footer')) return; // viajan con otro bloque o se dibujan aparte
+      if (cl.contains('recibo-header')) {
+        nueva([h, h.nextElementSibling && h.nextElementSibling.classList.contains('recibo-divider') ? h.nextElementSibling : null]);
+      } else if (cl.contains('presupuesto-section-bar')) {
+        barra = h;                                  // la barra de sección va siempre con su tabla
+      } else if (h.tagName === 'TABLE') {
+        const encabezado = h.querySelector('thead');
+        const filas = Array.from(h.querySelectorAll('tbody tr'));
+        filas.forEach((tr, i) => nueva(i === 0 ? [barra, encabezado, tr] : [tr], i === 0 ? {} : { fila: tr }));
+        if (!filas.length) nueva([barra, h]);
+        barra = null;
+      } else if (cl.contains('recibo-totals')) {
+        nueva([h, h.nextElementSibling], { juntoAlAnterior: true });   // subtotal + total, pegados al último renglón
+      } else if (cl.contains('recibo-cierre')) {
+        Array.from(h.children).forEach(c => {
+          if (c.classList.contains('condiciones-bloque')) {
+            const partes = Array.from(c.children);
+            const primero = Math.max(0, partes.findIndex(p => p.classList.contains('cond-texto')));
+            nueva(partes.slice(0, primero + 1));                        // título (+ subtítulo) con la primera condición
+            partes.slice(primero + 1).forEach(p => nueva([p]));       // el resto, una por una
+          } else if (c.classList.contains('firma-row')) {
+            nueva([c], { juntoAlAnterior: true });                      // las firmas nunca quedan solas
+          } else {
+            nueva([c]);
+          }
+        });
+      } else {
+        nueva([h]);
+      }
+    });
+    return unidades;
+  }
+
+  // Reparte los bloques en páginas de altura H (px). Cada elemento queda marcado con data-u = número de
+  // su grupo; devuelve [{ g0, g1 }]: de qué grupo a qué grupo va cada página.
+  function paginarUnidades(unidades, escenario, H) {
+    const base = escenario.getBoundingClientRect().top;
+    const grupos = [];
+    unidades.forEach(u => {
+      const rects = u.els.map(e => e.getBoundingClientRect());
+      const top = Math.min(...rects.map(r => r.top)) - base;
+      const bottom = Math.max(...rects.map(r => r.bottom)) - base;
+      if (u.juntoAlAnterior && grupos.length) grupos[grupos.length - 1].bottom = Math.max(grupos[grupos.length - 1].bottom, bottom);
+      else grupos.push({ top, bottom, fila: u.fila || null });
+      u.els.forEach(e => { e.dataset.u = String(grupos.length - 1); });
+    });
+    const paginas = [];
+    // Si una página arranca a media tabla se le repite el encabezado de la tabla: su altura cuenta.
+    const altoEncabezado = g => {
+      const th = g.fila ? g.fila.closest('table').querySelector('thead') : null;
+      return th ? th.getBoundingClientRect().height : 0;
+    };
+    let g0 = 0, inicio = grupos[0].top, extra = 0;
+    for (let i = 1; i < grupos.length; i++) {
+      if (grupos[i].bottom - inicio + extra > H) {
+        paginas.push({ g0, g1: i - 1 });
+        g0 = i; inicio = grupos[i].top; extra = altoEncabezado(grupos[i]);
+      }
+    }
+    paginas.push({ g0, g1: grupos.length - 1 });
+    return paginas;
+  }
+
+  // Copia de la hoja con solo los bloques de una página (sin desplazamientos: se dibuja desde arriba).
+  // En las hojas de continuación se repite el encabezado de cada tabla.
+  function hojaDePagina(copia, pag) {
+    const hoja = copia.cloneNode(true);
+    hoja.querySelectorAll('[data-u]').forEach(e => {
+      const g = Number(e.dataset.u);
+      if (g < pag.g0 || g > pag.g1) e.style.display = 'none';
+    });
+    hoja.querySelectorAll('table').forEach(t => {
+      const visibles = Array.from(t.querySelectorAll('tbody tr')).some(tr => tr.style.display !== 'none');
+      const th = t.querySelector('thead');
+      if (th) th.style.display = visibles ? '' : 'none';
+      if (!visibles) t.style.display = 'none';
+    });
+    // Contenedores que se quedaron sin nada visible no deben dejar su margen.
+    hoja.querySelectorAll('.condiciones-bloque, .recibo-cierre').forEach(c => {
+      if (!Array.from(c.querySelectorAll('[data-u]')).some(e => e.style.display !== 'none')) c.style.display = 'none';
+    });
+    return hoja;
+  }
+
+  async function imagenesListas(raiz) {
+    await Promise.all(Array.from(raiz.querySelectorAll('img')).map(img =>
+      img.complete && img.naturalWidth ? null : new Promise(res => { img.onload = img.onerror = res; })));
+  }
+
   async function generarPdfNuevo(q) {
     await cargarHtml2pdf();
     const el = document.getElementById('reciboCard');
-    // La barra negra del pie (SPAZIO LUCE · correo · ciudad) se dibuja fija al fondo de cada hoja en vez de
-    // ir dentro de la hoja: así nunca se parte ni queda sola en una página extra.
+    // La barra negra del pie (SPAZIO LUCE · correo · ciudad) se dibuja fija al fondo de cada hoja.
     const pie = el.querySelector('.recibo-footer');
     const piePartes = pie ? Array.from(pie.children).map(c => c.textContent.trim()).filter(Boolean) : [];
-    // Se genera desde una copia sin la barra (la hoja en pantalla no se toca).
+    const rotulo = 'Cotización' + (q && q.folio ? ' ' + q.folio : '') + (q && q.client ? ' · ' + q.client : '');
+
+    // 1) Escenario: copia de la hoja a ancho fijo, fuera de pantalla (la hoja visible no se toca).
+    const escenario = document.createElement('div');
+    escenario.style.cssText = `position:absolute;left:-10000px;top:0;width:${ESCENARIO_PX}px;background:#fff;`;
     const copia = el.cloneNode(true);
+    copia.removeAttribute('id');
+    copia.style.cssText += `;width:${ESCENARIO_PX}px;max-width:none;margin:0;border-radius:0;box-shadow:none;position:static;`;
     const pieCopia = copia.querySelector('.recibo-footer');
     if (pieCopia) pieCopia.remove();
-    const rotulo = 'Cotización' + (q && q.folio ? ' ' + q.folio : '') + (q && q.client ? ' · ' + q.client : '');
-    return window.html2pdf().set({
-      margin: [10, 8, 16, 8],
-      image: { type: 'jpeg', quality: 0.96 },
-      // scrollX/scrollY en 0: si la ventana está desplazada (se genera la cotización desde abajo del
-      // formulario), html2canvas dibuja la hoja corrida: hojas en blanco, renglones y firmas cortados.
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: null, scrollX: 0, scrollY: 0 },
-      jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
-      // Lo que no debe partirse entre dos páginas: renglones, encabezados, total y todo el cierre
-      // (condiciones y firmas pasan juntos a la página siguiente si no caben).
-      pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.recibo-header', '.recibo-info', '.presupuesto-section-bar', '.recibo-totals', '.recibo-cierre', '.condiciones-bloque', '.firma-row'] },
-    }).from(copia).toPdf().get('pdf').then(pdf => {
-      // Pie de cada página: barra negra con los datos de Spazio Luce y, arriba, la cotización/cliente
-      // a la izquierda y "Página X de N" a la derecha.
-      const n = pdf.internal.getNumberOfPages();
-      const ancho = pdf.internal.pageSize.getWidth();
-      const alto = pdf.internal.pageSize.getHeight();
-      for (let i = 1; i <= n; i++) {
-        pdf.setPage(i);
-        pdf.setFontSize(8);
-        pdf.setTextColor(130, 130, 130);
-        pdf.setFont('helvetica', 'normal');
-        pdf.text(rotulo, 8, alto - 14);
-        pdf.text('Página ' + i + ' de ' + n, ancho - 8, alto - 14, { align: 'right' });
-        if (piePartes.length) {
-          pdf.setFillColor(17, 17, 17);
-          pdf.rect(8, alto - 11, ancho - 16, 7, 'F');
-          pdf.setTextColor(201, 162, 39);
-          pdf.setFontSize(8);
-          pdf.setFont('helvetica', 'bold');
-          pdf.text(piePartes[0], 12, alto - 6.4);
-          pdf.setFont('helvetica', 'normal');
-          if (piePartes[1]) pdf.text(piePartes[1], ancho / 2, alto - 6.4, { align: 'center' });
-          if (piePartes[2]) pdf.text(piePartes[2], ancho - 12, alto - 6.4, { align: 'right' });
+    escenario.appendChild(copia);
+    document.body.appendChild(escenario);
+
+    const canvases = [];
+    try {
+      await imagenesListas(copia);
+      const anchoUtilMm = HOJA.ancho - 2 * HOJA.lado;
+      const altoUtilMm = HOJA.alto - HOJA.arriba - HOJA.abajo;
+      const pxPorMm = ESCENARIO_PX / anchoUtilMm;
+      const H = altoUtilMm * pxPorMm - 6;   // pequeño colchón: la hoja se vuelve a acomodar al armar cada página
+      const paginas = paginarUnidades(unidadesDeHoja(copia), escenario, H);
+
+      // Comprobación con medidas reales: cada página se arma y se mide; si alguna se pasa de la hoja
+      // (por el encabezado repetido, márgenes…), su último bloque pasa a la página siguiente.
+      const medir = pag => {
+        const hoja = hojaDePagina(copia, pag);
+        escenario.appendChild(hoja);
+        const alto = hoja.getBoundingClientRect().height;
+        hoja.remove();
+        return alto;
+      };
+      for (let k = 0; k < paginas.length; k++) {
+        while (paginas[k].g1 > paginas[k].g0 && medir(paginas[k]) > H) {
+          const mover = paginas[k].g1;
+          paginas[k].g1 -= 1;
+          if (k + 1 < paginas.length) paginas[k + 1].g0 = mover;
+          else paginas.push({ g0: mover, g1: mover });
         }
       }
-    }).outputPdf('blob');
+
+      // 2) Cada página: la hoja con solo sus bloques, fotografiada aparte.
+      for (const pag of paginas) {
+        const canvas = await window.html2pdf().set({
+          // scrollX/scrollY en 0: con la ventana desplazada html2canvas dibuja la hoja corrida.
+          // width fijo: el contenedor de html2pdf es más ancho que la hoja y dejaría un borde en blanco.
+          html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0, width: ESCENARIO_PX, windowWidth: ESCENARIO_PX },
+        }).from(hojaDePagina(copia, pag)).toCanvas().get('canvas');
+        canvases.push(canvas);
+      }
+    } finally {
+      escenario.remove();
+    }
+
+    // 3) Armar el PDF: una imagen por página + pie fijo + cabecera corta desde la 2.ª hoja.
+    const pdf = await window.html2pdf().set({ jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' } })
+      .from(document.createElement('canvas'), 'canvas').toPdf().get('pdf');
+    canvases.forEach(c => {
+      pdf.addPage();
+      const alto = (c.height / c.width) * (HOJA.ancho - 2 * HOJA.lado);
+      pdf.addImage(c.toDataURL('image/jpeg', 0.95), 'JPEG', HOJA.lado, HOJA.arriba, HOJA.ancho - 2 * HOJA.lado, alto);
+    });
+    pdf.deletePage(1);   // la página en blanco con la que arrancó el documento
+
+    const n = pdf.internal.getNumberOfPages();
+    for (let i = 1; i <= n; i++) {
+      pdf.setPage(i);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8);
+      if (i > 1) {   // cabecera corta en las hojas de continuación
+        pdf.setTextColor(184, 145, 46);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('SPAZIO LUCE', HOJA.lado, 6.5);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(120, 120, 120);
+        pdf.text(rotulo + ' · continuación', HOJA.ancho - HOJA.lado, 6.5, { align: 'right' });
+        pdf.setDrawColor(201, 162, 39);
+        pdf.setLineWidth(0.4);
+        pdf.line(HOJA.lado, 8, HOJA.ancho - HOJA.lado, 8);
+      }
+      pdf.setTextColor(130, 130, 130);
+      pdf.text(rotulo, HOJA.lado, HOJA.alto - 14);
+      pdf.text('Página ' + i + ' de ' + n, HOJA.ancho - HOJA.lado, HOJA.alto - 14, { align: 'right' });
+      if (piePartes.length) {
+        pdf.setFillColor(17, 17, 17);
+        pdf.rect(HOJA.lado, HOJA.alto - 11, HOJA.ancho - 2 * HOJA.lado, 7, 'F');
+        pdf.setTextColor(201, 162, 39);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(piePartes[0], HOJA.lado + 4, HOJA.alto - 6.4);
+        pdf.setFont('helvetica', 'normal');
+        if (piePartes[1]) pdf.text(piePartes[1], HOJA.ancho / 2, HOJA.alto - 6.4, { align: 'center' });
+        if (piePartes[2]) pdf.text(piePartes[2], HOJA.ancho - HOJA.lado - 4, HOJA.alto - 6.4, { align: 'right' });
+      }
+    }
+    return pdf.output('blob');
   }
 
   // Un solo PDF por cotizacion: lo comparten "Guardar en carpeta" y el envio por
