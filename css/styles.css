@@ -430,3 +430,15 @@
   .diferencia-cols p b { color: var(--text); }
   .diferencia-regla { margin-top: 12px; font-size: 13px; line-height: 1.55; color: var(--text-secondary); }
   .diferencia-regla b { color: var(--accent); }
+
+  /* Condiciones editables */
+  .cond-box { margin-top: 18px; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; background: var(--bg); }
+  .cond-box summary { cursor: pointer; font-weight: 700; font-size: 14px; }
+  .cond-box summary small { font-weight: 500; color: var(--text-secondary); font-size: 12px; margin-left: 6px; }
+  .cond-box textarea { width: 100%; margin-top: 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; color: var(--text); font-family: inherit; font-size: 14px; line-height: 1.5; resize: vertical; }
+  .cond-acciones { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; font-size: 12px; color: var(--text-secondary); }
+  .cond-acciones span { flex: 1 1 240px; }
+  .recibo-card .cond-item { padding-left: 14px; text-indent: -14px; margin-top: 3px; }
+  .formato-link { display: block; text-align: center; text-decoration: none; margin-top: 8px; color: var(--text-secondary); }
+  .formato-link:hover { border-color: var(--accent); color: var(--accent); }
+  .formato-link-chico { display: inline-block; margin: 10px 0 0 14px; font-size: 13px; font-weight: 600; color: var(--accent); }

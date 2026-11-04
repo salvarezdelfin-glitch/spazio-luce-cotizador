@@ -24,7 +24,7 @@ let currentAccessToken = null;
 // inyección SQL. Lo que sí se arma con texto es la URL (tabla, id, orden): un id
 // como "1&id=gt.0" colaría un filtro extra y podría tocar más filas de las
 // previstas. Aquí se valida contra listas y patrones estrictos antes de pedir nada.
-const SB_TABLES = new Set(['clientes', 'cotizaciones', 'gastos', 'crm_leads', 'producto_fotos', 'directorio', 'prospectos']);
+const SB_TABLES = new Set(['clientes', 'cotizaciones', 'gastos', 'crm_leads', 'producto_fotos', 'directorio', 'prospectos', 'ajustes']);
 function sbTable(name) {
   if (!SB_TABLES.has(name)) throw new Error('Tabla no permitida: ' + name);
   return name;
@@ -265,7 +265,7 @@ function showToast(msg) {
 
 // Versión que se ve abajo a la izquierda (para comprobar que la app ya se actualizó).
 // Se cambia en cada publicación.
-const APP_VERSION = '4 nov 2026 · Cotización vs presupuesto explicado';
+const APP_VERSION = '4 nov 2026 · PDF de proveedor y condiciones editables';
 
 function showApp() {
   document.getElementById('loginScreen').classList.add('hidden');
@@ -940,8 +940,15 @@ async function handleExcelImport(event) {
   const file = event.target.files[0];
   if (!file) return;
   try {
-    const { rows } = parseSheetRows(await readSheetRows(file));
+    const { rows, meta, condiciones } = await leerExcelCompleto(file);
     rows.forEach(addProductRow);
+    // Si es el formato de Spazio Luce, también trae los datos del cliente y las condiciones.
+    const pon = (id, v) => { const el = document.getElementById(id); if (el && !el.value && v) el.value = v; };
+    pon('quoteClient', meta.cliente);
+    pon('quoteAddress', meta.proyecto);
+    if (meta.contacto) pon(meta.contacto.includes('@') ? 'quoteEmail' : 'quotePhone', meta.contacto);
+    pon('quoteNote', meta.nota);
+    aplicarCondicionesExcel('quoteCondiciones', condiciones);
     showToast(rows.length > 0 ? `${rows.length} concepto(s) importados del Excel` : 'No se encontraron filas válidas en el archivo');
   } catch (err) {
     console.error('Error al leer el Excel', err);
@@ -1116,6 +1123,8 @@ async function prepareNewQuote() {
   document.getElementById('quoteEmail').value = '';
   document.getElementById('quoteAddress').value = '';
   document.getElementById('quoteNote').value = '';
+  document.getElementById('quoteCondiciones').dataset.tocado = '';
+  iniciarCondiciones('quoteCondiciones');
   document.getElementById('catalogSearch').value = '';
   document.getElementById('quickAdd').value = '';
   document.getElementById('quickAddSuggestions').innerHTML = '';
@@ -1200,6 +1209,7 @@ async function generateQuoteImpl() {
     iva: totals.iva,
     total: totals.total,
     iva_incluido: ivaOn,
+    condiciones: leerCondiciones('quoteCondiciones'),
   };
 
   if (editingQuoteId) {
@@ -1273,11 +1283,7 @@ function reciboCierreHtml(quote) {
   return `
     <div class="recibo-cierre">
       ${quote.note ? `<div class="condiciones" style="margin-top:14px;"><b>NOTA:</b> ${escapeHtml(quote.note)}</div>` : ''}
-      <div class="condiciones-bloque">
-        <div class="cond-titulo">CONDICIONES</div>
-        <div class="cond-sub">ALCANCE</div>
-        <div class="cond-texto">${ALCANCE_TEXTO}</div>
-      </div>
+      ${condicionesHtml(quote)}
       <div class="firma-row firma-nombres">
         <div><span class="firma-nombre">${escapeHtml(quote.client)}</span><span class="firma-rol">FIRMA · CLIENTE</span></div>
         <div><span class="firma-nombre">${FIRMANTE_SPAZIO_LUCE}</span><span class="firma-rol">FIRMA · SPAZIO LUCE</span></div>
@@ -1593,6 +1599,8 @@ function preparePresupuestos() {
   fechaEl.dataset.auto = '1';
   document.getElementById('presuContact').value = '';
   document.getElementById('presuNote').value = '';
+  document.getElementById('presuCondiciones').dataset.tocado = '';
+  iniciarCondiciones('presuCondiciones');
   document.getElementById('presuIvaToggle').checked = false;
   if (typeof resetMargenPresupuesto === 'function') resetMargenPresupuesto();
   recalcPresuTotals();
@@ -1662,11 +1670,28 @@ function presuSetMetaIfEmpty(id, value) {
   if (el && !el.value && value) el.value = value;
 }
 
+// Si el Excel trae una hoja de condiciones distinta a la de siempre, se ponen en el cuadro de condiciones.
+function aplicarCondicionesExcel(id, condiciones) {
+  if (!condiciones || !condiciones.length) return;
+  const base = condicionesPorDefecto();
+  if (condiciones.length === base.length && condiciones.every((c, i) => c === base[i])) return;
+  const el = document.getElementById(id);
+  el.dataset.tocado = '1';
+  el.value = condiciones.join('\n');
+}
+
 async function presuImportExcel(file, event) {
   try {
-    const { rows, folio } = parseSheetRows(await readSheetRows(file));
+    const { rows, folio, meta, condiciones } = await leerExcelCompleto(file);
     rows.forEach(addPresuRow);
-    if (folio) presuSetMetaIfEmpty('presuFolio', folio);
+    // Con el formato de Spazio Luce también llegan los datos del cliente y las condiciones.
+    presuSetMetaIfEmpty('presuClient', meta.cliente);
+    presuSetMetaIfEmpty('presuProject', meta.proyecto);
+    presuSetMetaIfEmpty('presuContact', meta.contacto);
+    presuSetMetaIfEmpty('presuNote', meta.nota);
+    if (meta.fecha) presuSetFechaIfAuto(meta.fecha);
+    aplicarCondicionesExcel('presuCondiciones', condiciones);
+    if (folio || meta.folio) presuSetMetaIfEmpty('presuFolio', folio || meta.folio);
     showToast(rows.length > 0 ? `${rows.length} renglón(es) importados` : 'No se encontraron filas válidas');
   } catch (err) {
     console.error(err);
@@ -1678,17 +1703,20 @@ async function presuImportExcel(file, event) {
 async function presuImportPdf(file, event) {
   if (!window.pdfjsLib) { showToast('No se pudo cargar el lector de PDF'); return; }
   try {
-    const { rows, fullText } = parsePdfPages(await readPdfPages(file));
+    const { rows, fullText, esProveedor, nota } = parsePdfPages(await readPdfPages(file));
     rows.forEach(addPresuRow);
 
     const meta = extractDocMeta(fullText);
     if (meta.cliente) presuSetMetaIfEmpty('presuClient', meta.cliente);
     if (meta.proyecto) presuSetMetaIfEmpty('presuProject', meta.proyecto);
-    if (meta.folio) presuSetMetaIfEmpty('presuFolio', meta.folio);
-    if (meta.fecha) presuSetFechaIfAuto(meta.fecha);
-    if (meta.nota) presuSetMetaIfEmpty('presuNote', meta.nota);
+    // En una cotización de proveedor el folio y la fecha son de ellos, no nuestros: el presupuesto conserva los suyos.
+    if (meta.folio && !esProveedor) presuSetMetaIfEmpty('presuFolio', meta.folio);
+    if (meta.fecha && !esProveedor) presuSetFechaIfAuto(meta.fecha);
+    if (meta.nota || nota) presuSetMetaIfEmpty('presuNote', meta.nota || nota);
 
-    showToast(rows.length > 0 ? `${rows.length} renglón(es) importados — revisa antes de generar` : 'No se detectaron renglones con precio');
+    showToast(rows.length > 0
+      ? (esProveedor ? `${rows.length} renglón(es) de la cotización del proveedor importados — son SUS precios; revisa y aplica tu ajuste` : `${rows.length} renglón(es) importados — revisa antes de generar`)
+      : 'No se detectaron renglones con precio');
   } catch (err) {
     console.error(err);
     showToast('No se pudo leer el PDF.');
@@ -1719,10 +1747,11 @@ async function presuImportDocx(file, event) {
         // posición, que fallaba si la tabla no tenía exactamente 3 columnas numéricas.
         const headerCells = Array.from(trs[0].querySelectorAll('td,th')).map(c => norm(c.textContent));
         const findCol = (...keys) => headerCells.findIndex(h => keys.some(k => h.includes(k)));
-        const nameCol = findCol('concepto', 'producto', 'nombre', 'descripcion');
-        const qtyCol = findCol('cant');
-        const priceCol = findCol('precio', 'p.u');
+        const nameCol = findCol('concepto', 'producto', 'nombre', 'descripcion', 'articulo');
+        const qtyCol = findCol('cant', 'unidades', 'uds');
+        const priceCol = findCol('precio', 'p.u', 'p. u');
         const sectionCol = findCol('seccion', 'categoria', 'partida');
+        const importeCol = findCol('importe');
         const hasHeader = nameCol !== -1 && (qtyCol !== -1 || priceCol !== -1);
         const dataRows = hasHeader ? trs.slice(1) : trs;
 
@@ -1736,6 +1765,9 @@ async function presuImportDocx(file, event) {
             qty = qtyCol !== -1 ? parseFloat(String(cells[qtyCol]).replace(/[^0-9.]/g, '')) : NaN;
             price = priceCol !== -1 ? parseFloat(String(cells[priceCol]).replace(/[^0-9.]/g, '')) : NaN;
             section = sectionCol !== -1 ? cells[sectionCol] : currentSection;
+            // Si cantidad × precio no cuadra con el importe del documento (p. ej. persianas, que se cobran por área), se respeta el importe.
+            const importe = importeCol !== -1 ? parseFloat(String(cells[importeCol]).replace(/[^0-9.]/g, '')) : NaN;
+            if (importe > 0 && qty > 0 && price >= 0 && Math.abs(qty * price - importe) > Math.max(0.05, importe * 0.002)) price = round2(importe / qty);
           } else {
             const moneyCells = cells.filter(c => /\$?\s*[\d,]+\.\d{2}/.test(c));
             if (moneyCells.length === 0) return;
@@ -1747,6 +1779,7 @@ async function presuImportDocx(file, event) {
           }
 
           if (!name || /^concepto$|^#$/i.test(name)) return;
+          name = name.replace(/^ZZ[A-Z]{2}\s+/, '');
           addPresuRow({ name, qty: isNaN(qty) ? 1 : qty, price: isNaN(price) ? 0 : price, section });
           imported++;
         });
@@ -1808,6 +1841,7 @@ async function generatePresupuestoImpl() {
     iva: totals.iva,
     total: totals.total,
     iva_incluido: document.getElementById('presuIvaToggle').checked,
+    condiciones: leerCondiciones('presuCondiciones'),
   };
 
   if (editingQuoteId) {
@@ -1865,6 +1899,7 @@ async function editQuote(id) {
   const q = (window.__cotizaciones || []).find(c => c.id === id);
   if (!q) { showToast('No se encontró esa cotización'); return; }
   editingQuoteId = id;
+  await cargarCondicionesBase();
   const hasSections = (q.items || []).some(it => it.section);
 
   if (hasSections) {
@@ -1875,6 +1910,7 @@ async function editQuote(id) {
     document.getElementById('presuContact').value = q.phone || q.email || '';
     document.getElementById('presuNote').value = q.note || '';
     document.getElementById('presuIvaToggle').checked = !!q.iva_incluido;
+    cargarCondicionesDeCotizacion('presuCondiciones', q.condiciones);
     const fechaEl = document.getElementById('presuFecha');
     fechaEl.value = q.fecha ? String(q.fecha).slice(0, 10) : todayForDateInput();
     fechaEl.dataset.auto = '0';
@@ -1896,6 +1932,7 @@ async function editQuote(id) {
     document.getElementById('quoteAddress').value = q.address || '';
     document.getElementById('quoteNote').value = q.note || '';
     document.getElementById('quoteFolio').value = q.folio || '';
+    cargarCondicionesDeCotizacion('quoteCondiciones', q.condiciones);
     // Se respeta el IVA que tenía la cotización (antes, al guardar, siempre se grababa
     // "IVA incluido" aunque los precios fueran sin IVA).
     ivaOn = q.iva_incluido !== false;

@@ -99,6 +99,7 @@ async function readPdfPages(file) {
 // haber errores, por eso las filas quedan editables antes de generar.
 // fullText se devuelve para que quien lo quiera lea folio/cliente/fecha.
 function parsePdfPages(pages) {
+  if (esPdfDeProveedor(pages)) return parsePdfProveedor(pages);
   const rows = [];
   const allLines = [];
   let section = '';
@@ -148,6 +149,131 @@ function parsePdfPages(pages) {
   return { rows, fullText: allLines.join('\n') };
 }
 
+// ---------------------------------------------------------------------------
+// Cotización de PROVEEDOR (sin signo "$"): tabla  ARTICULO | UNIDADES | P. U. | % DST. | IMPORTE
+// (p. ej. las de cortinas y persianas: secciones "CORTINA OPC. 2", "ARTICULOS EXTRAS",
+// "PERSIANAS OPC. 2"). Cada renglón trae al final  P.U.  %Dst  Importe; antes o después
+// vienen detalles sueltos (Ancho/Alto, Hojas, Color…) que se pegan al concepto.
+// Los códigos internos del proveedor (ZZTR, ZZCA, ZZPM) se quitan del nombre.
+// ---------------------------------------------------------------------------
+const RE_ENCABEZADO_PROVEEDOR = /\bARTICULO\b.*\b(IMPORTE|P\.?\s?U\.?)\b/i;
+function esPdfDeProveedor(pages) {
+  return pages.some(lines => lines.some(t => RE_ENCABEZADO_PROVEEDOR.test(t)));
+}
+
+const num2 = s => parseFloat(String(s).replace(/,/g, ''));
+
+// Saca del principio de la línea los detalles que el PDF imprime a la izquierda del artículo.
+function extraerDetallesIzquierda(texto) {
+  const detalles = [];
+  let t = texto;
+  let m;
+  for (let guard = 0; guard < 6; guard++) {
+    if ((m = t.match(/^Ancho:\s*([\d.]+)\s+Alto:\s*([\d.]+)\s+/i))) { detalles.push('ancho ' + m[1] + ' × alto ' + m[2] + ' m'); }
+    else if ((m = t.match(/^Hojas:\s*(\d+)\s+Apertura:\s*(\S+)\s+/i))) { detalles.push(m[1] + ' hojas, apertura ' + m[2].toLowerCase()); }
+    else if ((m = t.match(/^Confecci[oó]n:\s*(\S+)\s+/i))) { detalles.push('confección ' + m[1].toLowerCase()); }
+    else if ((m = t.match(/^Instalaci[oó]n:\s*(.+?)\s+(?=ZZ[A-Z]{2}\b)/i)) || (m = t.match(/^Instalaci[oó]n:\s*(\S+(?:\s+\S+)?)\s+/i))) { detalles.push('instalación ' + m[1].toLowerCase()); }
+    else break;
+    t = t.slice(m[0].length);
+  }
+  return { detalles, resto: t.trim() };
+}
+
+function limpiarNombreProveedor(nombre) {
+  return nombre.replace(/^ZZ[A-Z]{2}\s+/, '').replace(/\s{2,}/g, ' ').trim();
+}
+
+function parsePdfProveedor(pages) {
+  const rows = [];
+  const allLines = [];
+  const notas = [];
+  let section = '';
+  let ultima = null; // última fila: a ella se pegan los renglones de detalle que siguen
+
+  pages.forEach(lines => {
+    ultima = null; // una página nueva (términos y condiciones, etc.) no continúa la tabla
+    lines.forEach((linea, idx) => {
+      allLines.push(linea);
+      const t = linea.trim();
+
+      // Encabezado de tabla: "CORTINA OPC. 2 * ARTICULO UNIDADES P. U. % DST. IMPORTE" → la sección es lo que va antes.
+      if (RE_ENCABEZADO_PROVEEDOR.test(t)) {
+        const titulo = t.split(/\bARTICULO\b/i)[0].replace(/[*\s]+$/, '').trim();
+        if (titulo) section = titulo;
+        ultima = null;
+        return;
+      }
+      // Totales del propio documento (la app recalcula): no son renglones.
+      if (/^(TOTAL|SUBTOTAL|SUB\s*-?\s*TOTAL|I\.?V\.?A\.?)\b/i.test(t)) { ultima = null; return; }
+      // Notas del proveedor ("* 2 CORT. A TECHO…") → se juntan para el campo Nota.
+      if (/^\*\s*\S/.test(t)) {
+        notas.push(t.replace(/^\*\s*/, ''));
+        const sig = (lines[idx + 1] || '').trim();
+        if (/^[A-ZÁÉÍÓÚÑ ,.]{4,60}$/.test(sig) && !/^TOTAL/i.test(sig)) notas.push(sig);
+        ultima = null;
+        return;
+      }
+
+      // Renglón con montos: termina en  P.U.  %Dst  Importe.
+      const fin = t.match(/^(.*?)\s+([\d,]+\.\d{2})\s+(\d{1,3}(?:\.\d{1,2})?)\s+([\d,]+\.\d{2})$/);
+      if (fin) {
+        const pu = num2(fin[2]);
+        const importe = num2(fin[4]);
+        const { detalles, resto } = extraerDetallesIzquierda(fin[1]);
+        let nombre, qty, area = null, extra = '';
+
+        // Persianas: "NOMBRE  UDS  ÁREA  TECHO IZQUIERDO SI"
+        const pers = resto.match(/^(.*?)\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)\s+([A-ZÁÉÍÓÚÑ]+(?:\s+[A-ZÁÉÍÓÚÑ]+)*)$/);
+        if (pers) {
+          nombre = pers[1]; qty = parseFloat(pers[2]); area = pers[3]; extra = pers[4];
+        } else {
+          const sp = splitQtyUnit(resto);
+          nombre = sp.name; qty = sp.qty;
+        }
+        nombre = limpiarNombreProveedor(nombre);
+        if (!nombre || nombre.length < 3) return;
+        if (!(qty > 0)) qty = 1;
+        if (area) detalles.push('área ' + area + ' m²');
+        if (extra) {
+          // "TECHO IZQUIERDO SI" = instalación, lado del mando y si lleva soporte
+          const e = extra.toLowerCase().match(/^(\S+)\s+(\S+)\s+(si|sí|no)$/);
+          if (e) detalles.push('instalación ' + e[1], 'mando ' + e[2], (e[3] === 'no' ? 'sin' : 'con') + ' soporte');
+          else detalles.push(extra.toLowerCase());
+        }
+
+        // Si cantidad × P.U. coincide con el importe, ese es el precio; si no (persianas, donde el
+        // importe sale de área × precio), se saca el unitario del importe para que el total quede igual.
+        const coincide = Math.abs(qty * pu - importe) <= Math.max(0.05, importe * 0.002);
+        const price = coincide ? pu : round2(importe / qty);
+
+        ultima = { name: nombre, qty, price, unit: '', section, detalles };
+        rows.push(ultima);
+        return;
+      }
+
+      // Renglón de detalle sin montos: pertenece al renglón de arriba.
+      if (ultima && t.length <= 80) {
+        let m;
+        if ((m = t.match(/^Color:\s*(.+)$/i))) { ultima.detalles.push('color ' + m[1].toLowerCase()); return; }
+        if (/^[A-Za-zÁÉÍÓÚÑáéíóúñ]+:\s*\S/.test(t)) { ultima.detalles.push(t.replace(/:\s*/, ' ').toLowerCase()); return; }
+        const texto = t.replace(/\.$/, '');
+        ultima.name += (/^DE\s/i.test(texto) ? ' ' : ' — ') + texto;
+        return;
+      }
+
+      // Título de sección suelto ("CORTINAS", "ARTICULOS EXTRAS", "PERSIANAS").
+      if (looksLikeSectionHeader(t)) { section = t; ultima = null; }
+    });
+  });
+
+  // Los detalles se escriben entre paréntesis al final del concepto.
+  rows.forEach(r => {
+    if (r.detalles.length) r.name += ' (' + r.detalles.join(', ') + ')';
+    delete r.detalles;
+  });
+  return { rows, fullText: allLines.join('\n'), esProveedor: true, nota: notas.join(' ').slice(0, 300) };
+}
+
 async function readSheetRows(file) {
   const workbook = XLSX.read(new Uint8Array(await file.arrayBuffer()), { type: 'array' });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -163,17 +289,17 @@ function parseSheetRows(raw) {
   const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
 
   let headerIdx = raw.findIndex(r =>
-    r.some(c => /concepto|producto|nombre|descripcion/.test(norm(c))) &&
-    r.some(c => /cant|precio|importe|p\.u/.test(norm(c)))
+    r.some(c => /concepto|producto|nombre|descripcion|articulo/.test(norm(c))) &&
+    r.some(c => /cant|unidades|uds|precio|importe|p\.?\s?u\b/.test(norm(c)))
   );
   if (headerIdx === -1) headerIdx = 0;
 
   const header = raw[headerIdx].map(norm);
   const find = test => header.findIndex(test);
   const col = {
-    name: find(k => /concepto|producto|nombre|descripcion/.test(k)),
-    qty: find(k => k.includes('cant')),
-    price: find(k => k.includes('precio') || k.includes('p.u')),
+    name: find(k => /concepto|producto|nombre|descripcion|articulo/.test(k)),
+    qty: find(k => k.includes('cant') || k === 'unidades' || k === 'uds'),
+    price: find(k => k.includes('precio') || k.includes('unitario') || /^p\.?\s?u\.?$/.test(k)),
     importe: find(k => k.includes('importe') || k === 'total'),
     unit: find(k => k.replace(/\./g, '') === 'un' || k.includes('unidad')),
     section: find(k => /seccion|categoria|partida/.test(k) || k.replace(/\./g, '') === 'part'),
@@ -191,10 +317,20 @@ function parseSheetRows(raw) {
 
     // Fila de SUMA/TOTAL del propio documento: no es un concepto.
     if (filled.some(c => /^(SUMA|SUB\s*-?\s*TOTAL|GRAN\s*TOTAL|TOTAL)$/i.test(String(c).trim()))) continue;
+    // "TOTAL DE CORTINA OPC. 2", "SUBTOTAL: …", "I.V.A." en la primera celda: totales del proveedor, no conceptos.
+    if (/^(TOTAL|SUB\s*-?\s*TOTAL|I\.?V\.?A\.?)\b/i.test(String(filled[0]).trim())) continue;
 
-    // Una sola celda de texto sin números = encabezado de sección.
-    if (filled.length === 1 && !filled.some(c => typeof c === 'number' || /\d/.test(String(c)))) {
-      currentSection = String(filled[0]).trim();
+    // Una sola celda de texto (sin precio ni cantidad) = encabezado de sección, o un detalle del
+    // renglón de arriba ("Color: IVORY", "CORTINA CON FALSOS.") que se pega a ese concepto.
+    if (filled.length === 1 && typeof filled[0] === 'string' && !/^[\d.,$\s-]+$/.test(filled[0])) {
+      const texto = String(filled[0]).trim();
+      if (rows.length && /:/.test(texto) && texto.length <= 80) {
+        rows[rows.length - 1].name += ' (' + texto.replace(/:\s*/, ' ').toLowerCase() + ')';
+      } else if (rows.length && /\.$/.test(texto) && texto.length <= 80) {
+        rows[rows.length - 1].name += ' — ' + texto.replace(/\.$/, '');
+      } else {
+        currentSection = texto;
+      }
       continue;
     }
 
@@ -207,13 +343,78 @@ function parseSheetRows(raw) {
     if (col.price < 0 && col.importe >= 0) {
       const importe = num(r[col.importe]);
       price = qty > 0 ? round2(importe / qty) : importe;
+    } else if (col.price >= 0 && col.importe >= 0) {
+      const importe = num(r[col.importe]);
+      if (importe > 0 && qty > 0 && Math.abs(qty * price - importe) > Math.max(0.05, importe * 0.002)) price = round2(importe / qty);
     }
     if (col.folio >= 0 && !folio && r[col.folio]) folio = String(r[col.folio]).trim();
     rows.push({
-      name, qty, price,
+      name: name.replace(/^ZZ[A-Z]{2}\s+/, ''), qty, price,
       unit: col.unit >= 0 ? String(r[col.unit] || '').trim() : '',
       section: col.section >= 0 ? String(r[col.section] || '').trim() : currentSection,
     });
   }
   return { rows, folio };
+}
+
+// ---------------------------------------------------------------------------
+// Formato de Excel de Spazio Luce (assets/Formato-Spazio-Luce.xlsx): arriba los datos del
+// cliente (CLIENTE, PROYECTO, TELÉFONO O CORREO, FOLIO, FECHA, NOTA), luego la tabla
+// SECCIÓN | CONCEPTO | UN | CANT. | P. UNITARIO | IMPORTE y, en la hoja "Condiciones",
+// una condición por renglón. También sirve cualquier Excel con encabezados parecidos.
+// ---------------------------------------------------------------------------
+function fechaDeCelda(v) {
+  if (!v) return '';
+  const dos = n => String(n).padStart(2, '0');
+  if (v instanceof Date && !isNaN(v)) return v.getFullYear() + '-' + dos(v.getMonth() + 1) + '-' + dos(v.getDate());
+  if (typeof v === 'number' && window.XLSX && XLSX.SSF) {
+    const d = XLSX.SSF.parse_date_code(v);
+    return d ? d.y + '-' + dos(d.m) + '-' + dos(d.d) : '';
+  }
+  const m = String(v).trim().match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if (m) return (m[3].length === 2 ? '20' + m[3] : m[3]) + '-' + dos(m[2]) + '-' + dos(m[1]);
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(v).trim()) ? String(v).trim() : '';
+}
+
+// Datos sueltos de arriba de la tabla ("CLIENTE | Fulana"), hasta la fila de encabezados.
+function parseExcelMeta(raw) {
+  const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+  const meta = {};
+  for (const r of raw) {
+    const celdas = r.map(norm);
+    if (celdas.some(c => /concepto|articulo|producto/.test(c)) && celdas.some(c => /cant|unidades|uds/.test(c))) break;
+    const idx = r.findIndex(c => String(c).trim() !== '');
+    if (idx === -1) continue;
+    const etiqueta = norm(r[idx]);
+    const valor = r.slice(idx + 1).find(c => String(c).trim() !== '' || c instanceof Date);
+    if (valor === undefined) continue;
+    if (/^cliente/.test(etiqueta)) meta.cliente = String(valor).trim();
+    else if (/^(proyecto|direccion|obra)/.test(etiqueta)) meta.proyecto = String(valor).trim();
+    else if (/^(telefono|correo|contacto)/.test(etiqueta)) meta.contacto = String(valor).trim();
+    else if (/^folio/.test(etiqueta)) meta.folio = String(valor).trim();
+    else if (/^fecha/.test(etiqueta)) meta.fecha = fechaDeCelda(valor);
+    else if (/^nota/.test(etiqueta)) meta.nota = String(valor).trim();
+  }
+  return meta;
+}
+
+// Hoja "Condiciones": una condición por celda de texto (se saltan el título y las instrucciones).
+function parseCondicionesHoja(wb) {
+  const nombre = wb.SheetNames.find(n => /condicion/i.test(n));
+  if (!nombre) return null;
+  const raw = XLSX.utils.sheet_to_json(wb.Sheets[nombre], { header: 1, defval: '', blankrows: false });
+  const lineas = [];
+  raw.forEach(r => r.forEach(c => {
+    const t = typeof c === 'string' ? c.trim() : '';
+    if (t.length > 3 && !/^CONDICIONES QUE SALDR/i.test(t) && !/^Ya viene la de siempre/i.test(t)) lineas.push(t);
+  }));
+  return lineas;
+}
+
+// Lee el Excel completo: renglones + datos del cliente + condiciones.
+async function leerExcelCompleto(file) {
+  const wb = XLSX.read(new Uint8Array(await file.arrayBuffer()), { type: 'array', cellDates: true });
+  const raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '', blankrows: false });
+  const { rows, folio } = parseSheetRows(raw);
+  return { rows, folio, meta: parseExcelMeta(raw), condiciones: parseCondicionesHoja(wb) };
 }

@@ -412,6 +412,7 @@
         <input type="file" id="excelInput" accept=".xlsx,.xls,.csv,.pdf" class="hidden" onchange="handleFileImport(event)" />
         <input type="file" id="productoFotoInput" accept="image/png,image/jpeg,image/webp,image/gif" class="hidden" onchange="onProductoFotoSelected(event)" />
         <button class="add-row-btn" style="margin-top:8px;border-color:var(--accent);color:var(--accent);" onclick="document.getElementById('excelInput').click()">📥 Importar desde Excel o PDF</button>
+        <a class="add-row-btn formato-link" href="assets/Formato-Spazio-Luce.xlsx" download>⬇️ Descargar el formato de Excel (lo llenas y lo subes aquí)</a>
         <p style="font-size:11px;color:var(--text-secondary);margin:6px 2px 0;">
           Excel: columnas <b>Producto</b>, <b>Cantidad</b> y <b>Precio Unitario</b> (y opcional Sección/Unidad). PDF: intenta leer tablas de precios o cotizaciones automáticamente — revisa siempre lo que se agregó antes de generar, la lectura de PDF no es perfecta.
         </p>
@@ -420,6 +421,15 @@
         <div class="totals-box">
           <div class="grand">Total: <span id="totalVal">$0.00</span></div>
         </div>
+        <details class="cond-box">
+          <summary>📝 Condiciones que saldrán al final de la cotización <small>(las de siempre, puedes cambiarlas o agregar)</small></summary>
+          <textarea id="quoteCondiciones" rows="4" placeholder="Una condición por renglón"></textarea>
+          <div class="cond-acciones">
+            <span>Una condición por renglón. Aquí solo cambian para esta cotización.</span>
+            <button class="btn-ghost-sm" type="button" onclick="restablecerCondiciones('quoteCondiciones')">Poner las de siempre</button>
+            <button class="btn-ghost-sm" type="button" onclick="guardarCondicionesBase('quoteCondiciones')">Guardar como las de siempre</button>
+          </div>
+        </details>
       </div>
       <div class="accion-bar">
         <div class="accion-info">
@@ -442,6 +452,7 @@
       <div class="quote-form">
         <input type="file" id="presuFileInput" accept=".xlsx,.xls,.csv,.pdf,.docx" class="hidden" onchange="handlePresuFileImport(event)" />
         <button class="btn-primary" style="max-width:340px;" onclick="document.getElementById('presuFileInput').click()">📥 Subir presupuesto (Excel, PDF o Word)</button>
+        <a class="formato-link-chico" href="assets/Formato-Spazio-Luce.xlsx" download>⬇️ Descargar el formato de Excel para llenarlo y subirlo</a>
         <p style="font-size:11px;color:var(--text-secondary);margin:8px 2px 0;">
           Detecta secciones (ej. Herrería, Plomería), folio, fecha y nota si vienen en el documento. La lectura de PDF/Word no es perfecta — siempre revisa los renglones antes de generar.
         </p>
@@ -508,6 +519,15 @@
           <div>IVA: <span id="presuIvaVal">No incluido</span></div>
           <div class="grand">Total: <span id="presuTotalVal">$0.00</span></div>
         </div>
+        <details class="cond-box">
+          <summary>📝 Condiciones que saldrán al final del presupuesto <small>(las de siempre, puedes cambiarlas o agregar)</small></summary>
+          <textarea id="presuCondiciones" rows="4" placeholder="Una condición por renglón"></textarea>
+          <div class="cond-acciones">
+            <span>Una condición por renglón. Aquí solo cambian para este presupuesto.</span>
+            <button class="btn-ghost-sm" type="button" onclick="restablecerCondiciones('presuCondiciones')">Poner las de siempre</button>
+            <button class="btn-ghost-sm" type="button" onclick="guardarCondicionesBase('presuCondiciones')">Guardar como las de siempre</button>
+          </div>
+        </details>
       </div>
       <div class="accion-bar">
         <div class="accion-info">
@@ -644,6 +664,7 @@
 <script src="js/directorio.js"></script>
 <script src="js/prospectos.js"></script>
 <script src="js/margen.js"></script>
+<script src="js/condiciones.js"></script>
 <script src="js/facil.js"></script>
 <script src="js/guardar-en-carpeta.js" data-app="spazio-luce" data-cliente="client" data-carpeta-sugerida="Documentos\Spazio Luce\02 Clientes y Cotizaciones"></script>
 <script>
