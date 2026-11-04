@@ -133,7 +133,7 @@ function parsePdfPages(pages) {
       const amounts = money.map(m => parseFloat(m[1].replace(/,/g, '')));
       const before = lineText.slice(0, lineText.indexOf(money[0][0])).trim();
       const { name: rest, qty, unit } = splitQtyUnit(before);
-      const name = (pending + ' ' + rest).replace(/^\d+\s+/, '').trim();
+      const name = (pending + ' ' + rest).trim().replace(/^\d+\s+/, '').trim();   // sin el número de renglón del documento
       pending = '';
       if (!name || name.length < 3) return;
 
@@ -146,6 +146,11 @@ function parsePdfPages(pages) {
     });
   });
 
+  // Sin "$" ni encabezado de proveedor (p. ej. una foto de una tabla con medidas): lector genérico.
+  if (!rows.length) {
+    const genericas = parseLineasGenericas(allLines);
+    if (genericas.length) return { rows: genericas, fullText: allLines.join('\n') };
+  }
   return { rows, fullText: allLines.join('\n') };
 }
 
@@ -417,4 +422,164 @@ async function leerExcelCompleto(file) {
   const raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '', blankrows: false });
   const { rows, folio } = parseSheetRows(raw);
   return { rows, folio, meta: parseExcelMeta(raw), condiciones: parseCondicionesHoja(wb) };
+}
+
+// ---------------------------------------------------------------------------
+// Lector genérico de renglones: sirve para texto sacado de una FOTO o captura (OCR) y para tablas
+// sin "$". Cada renglón termina con números: [cantidad] [medidas…] [P. unitario] [Importe].
+//   "1 ENROLLABLE BO LUXURY BEIGE 1 2.958 1.690 4.999 4.999 399.00 1,994.61"
+//   → concepto "ENROLLABLE BO LUXURY BEIGE (ancho 2.958 × alto 1.690 m)", cantidad 1, precio 1,994.61
+// Cuando cantidad × P.U. no cuadra con el importe (se cobra por m²), se respeta el importe.
+// ---------------------------------------------------------------------------
+function parseLineasGenericas(lineas) {
+  const rows = [];
+  const esNumero = tk => /^-?[\d,]*\.?\d+$/.test(tk) && /\d/.test(tk);
+  const dosDecimales = tk => /^\d{1,3}(,\d{3})*\.\d{2}$|^\d+\.\d{2}$/.test(tk);
+  const num = x => parseFloat(String(x).replace(/,/g, ''));
+  lineas.forEach(crudo => {
+    const t = String(crudo).replace(/[$|]/g, ' ').replace(/\b(\d{1,3})\.(\d{3})\.(\d{2})\b/g, '$1,$2.$3').replace(/\s+/g, ' ').trim();
+    // Totales del documento (se aceptan errores de lectura como "SUBTITAL"): la app recalcula sola.
+    if (!t || /^(SUMA|SUB\s*-?\s*T\w{1,4}L|GRAN\s*TOTAL|T[O0]TAL|DESCUENTO|I\.?V\.?A\.?)\b/i.test(t)) return;
+    // el OCR a veces lee el punto decimal como guion ("4-099"): se corrige antes de buscar los números
+    const tk = t.split(' ').map(x => x.replace(/^(\d+)[-–—](\d{2,3})$/, '$1.$2'));
+    let ini = tk.length;                                                  // cola de números al final
+    while (ini > 0 && (esNumero(tk[ini - 1]) || tk[ini - 1] === '-')) ini--;
+    const cola = tk.slice(ini).filter(x => x !== '-');
+    if (!cola.length || !dosDecimales(cola[cola.length - 1])) return;     // debe terminar en un importe con centavos
+    let nombreTk = tk.slice(0, ini);
+    if (nombreTk.length && /^\d{1,3}$/.test(nombreTk[0])) nombreTk = nombreTk.slice(1);   // número de renglón
+    const nombre = nombreTk.join(' ').replace(/[^\p{L}\p{N}\s.,()\/&\-+"'º°²·]/gu, ' ').replace(/\s{2,}/g, ' ').trim();
+    if (nombre.length < 3 || !/\p{L}{2}/u.test(nombre)) return;
+
+    const importe = num(cola[cola.length - 1]);
+    let pu = null, previos = cola.slice(0, -1);
+    if (previos.length && dosDecimales(previos[previos.length - 1])) { pu = num(previos[previos.length - 1]); previos = previos.slice(0, -1); }
+    let qty = 1;
+    if (previos.length && /^\d+(\.\d{1,2})?$/.test(previos[0])) { qty = num(previos[0]); previos = previos.slice(1); }
+    if (!(qty > 0)) qty = 1;
+    const medidas = previos.filter(x => /^\d+\.\d{3}$/.test(x)).map(num);   // 3 decimales = medidas en metros
+    const detalles = [];
+    if (medidas.length >= 3 && medidas[0] < 20 && medidas[1] < 20 && Math.abs(medidas[0] * medidas[1] - medidas[2]) < 0.01) {
+      detalles.push('ancho ' + medidas[0].toFixed(3) + ' × alto ' + medidas[1].toFixed(3) + ' m');   // ancho, alto y m² cuadran
+    } else if (medidas.length === 2 && Math.abs(medidas[0] * qty - medidas[1]) < 0.01) {
+      detalles.push('medida ' + medidas[0].toFixed(3) + ' m c/u');                                    // la segunda es el total (cantidad × medida)
+    } else if (medidas.length === 2 && medidas[0] < 20 && medidas[1] < 20) {
+      detalles.push('ancho ' + medidas[0].toFixed(3) + ' × alto ' + medidas[1].toFixed(3) + ' m');
+    } else if (medidas.length) {
+      detalles.push('medida ' + medidas.map(m => m.toFixed(3)).join(' / ') + ' m');
+    }
+    const coincide = pu != null && Math.abs(qty * pu - importe) <= Math.max(0.05, importe * 0.005);
+    const price = coincide ? pu : round2(importe / qty);
+    let unidad = '', nombreFinal = nombre;
+    const ult = nombre.split(' ').pop();
+    if (nombre.includes(' ') && KNOWN_UNITS.includes(ult.toLowerCase().replace(/\./g, ''))) { unidad = ult; nombreFinal = nombre.slice(0, nombre.length - ult.length).trim(); }
+    rows.push({ name: nombreFinal + (detalles.length ? ' (' + detalles.join(', ') + ')' : ''), qty, price, unit: unidad, section: '' });
+  });
+  // Un renglón corto cuyo importe es la suma de los anteriores es un total mal leído, no un concepto.
+  while (rows.length > 2) {
+    const ultimo = rows[rows.length - 1];
+    const sumaPrevios = rows.slice(0, -1).reduce((s, r) => s + r.qty * r.price, 0);
+    if (ultimo.name.length < 14 && Math.abs(ultimo.qty * ultimo.price - sumaPrevios) < 1) rows.pop(); else break;
+  }
+  return rows;
+}
+
+// ---------------------------------------------------------------------------
+// Fotos y capturas (PNG, JPG): se lee el texto en el propio navegador (OCR con Tesseract.js, sin subir
+// la imagen a ningún servidor; solo se descarga el lector la primera vez) y se pasa por los mismos lectores.
+// ---------------------------------------------------------------------------
+const TESSERACT_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.0/tesseract.min.js';
+let cargandoTesseract = null;
+function cargarTesseract() {
+  if (window.Tesseract) return Promise.resolve();
+  if (!cargandoTesseract) {
+    cargandoTesseract = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = TESSERACT_SRC;
+      s.onload = resolve;
+      s.onerror = () => { cargandoTesseract = null; reject(new Error('No se pudo cargar el lector de imágenes')); };
+      document.head.appendChild(s);
+    });
+  }
+  return cargandoTesseract;
+}
+
+function esArchivoImagen(file) {
+  return /^image\//.test(file.type) || /\.(png|jpe?g|webp|bmp)$/i.test(file.name);
+}
+
+// Prepara la imagen para el OCR: la agranda, la pasa a blanco y negro y borra las líneas de la tabla
+// (bordes y cuadrícula), que son lo que más confunde al lector en las cotizaciones con celdas.
+async function prepararImagenOcr(file) {
+  const bmp = await createImageBitmap(file);
+  const escala = Math.max(1, Math.min(3, 2400 / bmp.width));
+  const c = document.createElement('canvas');
+  c.width = Math.round(bmp.width * escala); c.height = Math.round(bmp.height * escala);
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+  ctx.drawImage(bmp, 0, 0, c.width, c.height);
+  const w = c.width, h = c.height;
+  const img = ctx.getImageData(0, 0, w, h), d = img.data;
+  const gris = new Uint8Array(w * h);
+  const hist = new Array(256).fill(0);
+  for (let i = 0, p = 0; i < d.length; i += 4, p++) { const g = Math.round(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]); gris[p] = g; hist[g]++; }
+  // umbral de Otsu: separa el texto del fondo aunque la foto tenga más o menos luz
+  let suma = 0; for (let t = 0; t < 256; t++) suma += t * hist[t];
+  let sumB = 0, wB = 0, mejor = 0, umbral = 128;
+  for (let t = 0; t < 256; t++) {
+    wB += hist[t]; if (!wB) continue;
+    const wF = w * h - wB; if (!wF) break;
+    sumB += t * hist[t];
+    const mB = sumB / wB, mF = (suma - sumB) / wF;
+    const varianza = wB * wF * (mB - mF) * (mB - mF);
+    if (varianza > mejor) { mejor = varianza; umbral = t; }
+  }
+  umbral = Math.min(200, Math.max(90, umbral));
+  const oscuro = p => gris[p] < umbral;
+  // filas y columnas casi todas oscuras = líneas de la tabla
+  const filas = new Uint8Array(h), cols = new Uint8Array(w);
+  for (let y = 0; y < h; y++) { let n = 0; for (let x = 0; x < w; x++) if (oscuro(y * w + x)) n++; if (n > w * 0.4) filas[y] = 1; }
+  for (let x = 0; x < w; x++) { let n = 0; for (let y = 0; y < h; y++) if (oscuro(y * w + x)) n++; if (n > h * 0.3) cols[x] = 1; }
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const p = y * w + x;
+    const linea = filas[y] || cols[x] || (y > 0 && filas[y - 1]) || (y < h - 1 && filas[y + 1]) || (x > 0 && cols[x - 1]) || (x < w - 1 && cols[x + 1]);
+    const v = oscuro(p) && !linea ? 0 : 255;
+    d[p * 4] = d[p * 4 + 1] = d[p * 4 + 2] = v; d[p * 4 + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  return c;
+}
+
+// Elige el lector según lo que traiga el texto de una imagen: cotización de proveedor, tabla con números
+// al final de cada renglón (la mayoría), o el lector de PDF con "$".
+function parseLineasImagen(lineas) {
+  if (esPdfDeProveedor([lineas])) return parsePdfProveedor([lineas]);
+  const genericas = parseLineasGenericas(lineas);
+  if (genericas.length) return { rows: genericas, fullText: lineas.join('\n') };
+  return parsePdfPages([lineas]);
+}
+
+// Lee la imagen y devuelve los renglones de texto. Prueba varios modos de lectura (por renglones, por
+// columnas, disperso) y se queda con el primero que encuentre renglones con precio.
+async function leerImagenLineas(file, progreso) {
+  await cargarTesseract();
+  const lienzo = await prepararImagenOcr(file);
+  const worker = await Tesseract.createWorker('spa', 1, {
+    logger: m => { if (progreso && m.status === 'recognizing text') progreso(Math.round(m.progress * 100)); },
+  });
+  const aLineas = texto => String(texto || '').split(/\r?\n/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean)
+    .map(l => l.replace(/\bS(?=\s?\d[\d,]*\.\d{2}\b)/g, '$'));   // el OCR suele leer "$" como "S"
+  try {
+    let mejor = [];
+    for (const modo of ['6', '4', '11']) {
+      await worker.setParameters({ tessedit_pageseg_mode: modo, preserve_interword_spaces: '1' });
+      const { data } = await worker.recognize(lienzo);
+      const lineas = aLineas(data.text);
+      if (parseLineasImagen(lineas).rows.length) return lineas;
+      if (lineas.length > mejor.length) mejor = lineas;
+    }
+    return mejor;
+  } finally {
+    await worker.terminate();
+  }
 }

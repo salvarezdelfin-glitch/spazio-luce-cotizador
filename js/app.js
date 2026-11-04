@@ -265,7 +265,7 @@ function showToast(msg) {
 
 // Versión que se ve abajo a la izquierda (para comprobar que la app ya se actualizó).
 // Se cambia en cada publicación.
-const APP_VERSION = '4 nov 2026 · Condiciones de siempre de Spazio Luce';
+const APP_VERSION = '4 nov 2026 · Presupuesto desde foto o captura (PNG/JPG)';
 
 function showApp() {
   document.getElementById('loginScreen').classList.add('hidden');
@@ -916,6 +916,8 @@ function handleFileImport(event) {
   const ext = file.name.split('.').pop().toLowerCase();
   if (ext === 'pdf') {
     handlePdfImport(file, event);
+  } else if (esArchivoImagen(file)) {
+    handleImagenImport(file, event);
   } else {
     handleExcelImport(event);
   }
@@ -932,6 +934,21 @@ async function handlePdfImport(file, event) {
   } catch (err) {
     console.error('Error al leer el PDF', err);
     showToast('No se pudo leer el PDF. Intenta con el Excel del mismo documento.');
+  }
+  event.target.value = '';
+}
+
+// Foto o captura (PNG/JPG) en el Cotizador: se lee el texto y los renglones quedan editables.
+async function handleImagenImport(file, event) {
+  try {
+    showToast('Leyendo la imagen… la primera vez tarda un poco en preparar el lector');
+    const lineas = await leerImagenLineas(file, p => showToast('Leyendo la imagen… ' + p + ' %'));
+    const { rows } = parseLineasImagen(lineas);
+    rows.forEach(addProductRow);
+    showToast(rows.length > 0 ? rows.length + ' renglón(es) leídos de la imagen — revísalos antes de generar' : 'No pude leer renglones con precio en la imagen. Prueba con una foto más derecha y nítida, o con el Excel o PDF');
+  } catch (err) {
+    console.error(err);
+    showToast('No se pudo leer la imagen. Revisa tu conexión e inténtalo otra vez.');
   }
   event.target.value = '';
 }
@@ -1662,6 +1679,7 @@ function handlePresuFileImport(event) {
   if (!file) return;
   const ext = file.name.split('.').pop().toLowerCase();
   if (ext === 'pdf') presuImportPdf(file, event);
+  else if (esArchivoImagen(file)) presuImportImagen(file, event);
   else if (ext === 'docx') presuImportDocx(file, event);
   else presuImportExcel(file, event);
 }
@@ -1698,6 +1716,28 @@ async function presuImportExcel(file, event) {
   } catch (err) {
     console.error(err);
     showToast('No se pudo leer el Excel.');
+  }
+  event.target.value = '';
+}
+
+// Foto o captura (PNG/JPG): se lee el texto en el navegador y se arma igual que un PDF.
+async function presuImportImagen(file, event) {
+  try {
+    showToast('Leyendo la imagen… la primera vez tarda un poco en preparar el lector');
+    const lineas = await leerImagenLineas(file, p => showToast('Leyendo la imagen… ' + p + ' %'));
+    const { rows, fullText, nota } = parseLineasImagen(lineas);
+    rows.forEach(addPresuRow);
+    const meta = extractDocMeta(fullText);
+    // El OCR a veces mete basura al inicio o al final del nombre ("¿ UAN ALVAREZ:"): se limpia.
+    if (meta.cliente) presuSetMetaIfEmpty('presuClient', meta.cliente.replace(/\s{2,}.*/, '').replace(/^[^\p{L}]+/u, '').replace(/[^\p{L}\p{N}]+$/u, ''));
+    if (meta.proyecto) presuSetMetaIfEmpty('presuProject', meta.proyecto);
+    if (meta.nota || nota) presuSetMetaIfEmpty('presuNote', meta.nota || nota);
+    showToast(rows.length > 0
+      ? rows.length + ' renglón(es) leídos de la imagen — revisa cada uno (nombre, cantidad y precio) antes de generar'
+      : 'No pude leer renglones con precio en la imagen. Prueba con una foto más derecha y nítida, o sube el Excel o PDF');
+  } catch (err) {
+    console.error(err);
+    showToast('No se pudo leer la imagen. Revisa tu conexión e inténtalo otra vez.');
   }
   event.target.value = '';
 }

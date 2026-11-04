@@ -409,9 +409,9 @@
         </div>
         <div id="productRows"></div>
         <button class="add-row-btn" onclick="addProductRow()">+ Agregar producto manual</button>
-        <input type="file" id="excelInput" accept=".xlsx,.xls,.csv,.pdf" class="hidden" onchange="handleFileImport(event)" />
+        <input type="file" id="excelInput" accept=".xlsx,.xls,.csv,.pdf,.png,.jpg,.jpeg,.webp" class="hidden" onchange="handleFileImport(event)" />
         <input type="file" id="productoFotoInput" accept="image/png,image/jpeg,image/webp,image/gif" class="hidden" onchange="onProductoFotoSelected(event)" />
-        <button class="add-row-btn" style="margin-top:8px;border-color:var(--accent);color:var(--accent);" onclick="document.getElementById('excelInput').click()">📥 Importar desde Excel o PDF</button>
+        <button class="add-row-btn" style="margin-top:8px;border-color:var(--accent);color:var(--accent);" onclick="document.getElementById('excelInput').click()">📥 Importar desde Excel, PDF o imagen</button>
         <a class="add-row-btn formato-link" href="assets/Formato-Spazio-Luce.xlsx" download>⬇️ Descargar el formato de Excel (lo llenas y lo subes aquí)</a>
         <p style="font-size:11px;color:var(--text-secondary);margin:6px 2px 0;">
           Excel: columnas <b>Producto</b>, <b>Cantidad</b> y <b>Precio Unitario</b> (y opcional Sección/Unidad). PDF: intenta leer tablas de precios o cotizaciones automáticamente — revisa siempre lo que se agregó antes de generar, la lectura de PDF no es perfecta.
@@ -450,11 +450,11 @@
       </div>
 
       <div class="quote-form">
-        <input type="file" id="presuFileInput" accept=".xlsx,.xls,.csv,.pdf,.docx" class="hidden" onchange="handlePresuFileImport(event)" />
-        <button class="btn-primary" style="max-width:340px;" onclick="document.getElementById('presuFileInput').click()">📥 Subir presupuesto (Excel, PDF o Word)</button>
+        <input type="file" id="presuFileInput" accept=".xlsx,.xls,.csv,.pdf,.docx,.png,.jpg,.jpeg,.webp" class="hidden" onchange="handlePresuFileImport(event)" />
+        <button class="btn-primary" style="max-width:340px;" onclick="document.getElementById('presuFileInput').click()">📥 Subir presupuesto (Excel, PDF, Word o imagen)</button>
         <a class="formato-link-chico" href="assets/Formato-Spazio-Luce.xlsx" download>⬇️ Descargar el formato de Excel para llenarlo y subirlo</a>
         <p style="font-size:11px;color:var(--text-secondary);margin:8px 2px 0;">
-          Detecta secciones (ej. Herrería, Plomería), folio, fecha y nota si vienen en el documento. La lectura de PDF/Word no es perfecta — siempre revisa los renglones antes de generar.
+          Detecta secciones (ej. Herrería, Plomería), folio, fecha y nota si vienen en el documento. También lee una foto o captura (PNG o JPG): se lee en tu navegador, sin subirla a ningún lado. La lectura de PDF, Word e imágenes no es perfecta — siempre revisa los renglones antes de generar.
         </p>
       </div>
 
