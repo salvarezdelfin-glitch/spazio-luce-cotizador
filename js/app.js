@@ -1531,11 +1531,22 @@ async function enviarCotizacionPorWhatsApp(quote, boton) {
   }
 }
 
+// Editar la cotización que está en pantalla: se busca su fila guardada (por id, o por folio
+// si es recién generada) y se abre en el Cotizador o en Presupuestos con todo lleno.
+async function editarDesdeRecibo(quote) {
+  const lista = window.__cotizaciones || [];
+  const guardada = lista.find(c => quote.id != null && c.id === quote.id)
+    || lista.find(c => c.folio === quote.folio && c.client === quote.client);
+  if (!guardada) { showToast('Esta cotización no aparece guardada. Vuelve al Dashboard y ábrela desde la lista.'); return; }
+  await editQuote(guardada.id);
+}
+
 function wireReciboButtons(quote) {
   // Avisa a guardar-en-carpeta.js qué cotización está en pantalla (también la de Presupuestos, que no pasa por renderRecibo).
   if (typeof window.alMostrarRecibo === 'function') window.alMostrarRecibo(quote);
   const waMsg = encodeURIComponent(mensajeCotizacion(quote, false));
   const phoneDigits = waPhone(quote.phone);
+  document.getElementById('reciboEditBtn').onclick = () => editarDesdeRecibo(quote);
   const botonWa = document.getElementById('reciboWhatsBtn');
   botonWa.onclick = () => enviarCotizacionPorWhatsApp(quote, botonWa);
   document.getElementById('reciboWhatsMsgBtn').onclick = () => {
