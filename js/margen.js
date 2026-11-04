@@ -2,9 +2,9 @@
 // "originales", para no calcularlos uno por uno. Se aplica a los precios unitarios que
 // ya estén en los renglones (escritos a mano o importados de Excel/PDF/Word).
 //
-// Dos formas de calcularlo (misma lógica que la fórmula del catálogo, costo ÷ 0.70):
-// - "sumar al precio":  precio × 1.30   (la ganancia es 30 % del costo ≈ 23 % de la venta)
-// - "ganancia de la venta": precio ÷ 0.70 (la ganancia es 30 % de lo que cobras)
+// Dos formas de calcularlo; la predeterminada es la misma del catálogo (costo ÷ 0.70):
+// - "venta" (predeterminada): precio ÷ 0.70 (la ganancia es 30 % de lo que cobras)
+// - "sumar":  precio × 1.30   (la ganancia es 30 % del costo ≈ 23 % de la venta)
 // El botón no se puede aplicar dos veces sin querer: pide confirmar, y "Deshacer"
 // devuelve los precios de antes.
 

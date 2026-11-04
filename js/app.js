@@ -265,7 +265,7 @@ function showToast(msg) {
 
 // Versión que se ve abajo a la izquierda (para comprobar que la app ya se actualizó).
 // Se cambia en cada publicación.
-const APP_VERSION = '4 nov 2026 · Sumar ganancia a precios originales';
+const APP_VERSION = '4 nov 2026 · Ganancia ÷ 0.70 en precios originales';
 
 function showApp() {
   document.getElementById('loginScreen').classList.add('hidden');
