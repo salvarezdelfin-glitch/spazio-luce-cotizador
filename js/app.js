@@ -265,7 +265,7 @@ function showToast(msg) {
 
 // Versión que se ve abajo a la izquierda (para comprobar que la app ya se actualizó).
 // Se cambia en cada publicación.
-const APP_VERSION = '4 nov 2026 · Ganancia 30 % y condiciones numeradas';
+const APP_VERSION = '4 nov 2026 · Condiciones de siempre de Spazio Luce';
 
 function showApp() {
   document.getElementById('loginScreen').classList.add('hidden');
@@ -1674,8 +1674,9 @@ function presuSetMetaIfEmpty(id, value) {
 // Si el Excel trae una hoja de condiciones distinta a la de siempre, se ponen en el cuadro de condiciones.
 function aplicarCondicionesExcel(id, condiciones) {
   if (!condiciones || !condiciones.length) return;
-  const base = condicionesPorDefecto();
-  if (condiciones.length === base.length && condiciones.every((c, i) => c === base[i])) return;
+  // Si son las mismas de siempre (las guardadas o la de fábrica), no hace falta ponerlas.
+  const iguales = base => condiciones.length === base.length && condiciones.every((c, i) => c === base[i]);
+  if (iguales(condicionesPorDefecto()) || (condicionesBase && iguales(condicionesBase))) return;
   const el = document.getElementById(id);
   el.dataset.tocado = '1';
   el.value = condiciones.join('\n');

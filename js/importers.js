@@ -406,7 +406,7 @@ function parseCondicionesHoja(wb) {
   const lineas = [];
   raw.forEach(r => r.forEach(c => {
     const t = typeof c === 'string' ? c.trim() : '';
-    if (t.length > 3 && !/^CONDICIONES QUE SALDR/i.test(t) && !/^Ya viene la de siempre/i.test(t)) lineas.push(t);
+    if (t.length > 3 && !/^CONDICIONES QUE SALDR/i.test(t) && !/^Ya vienen? (la|las) de siempre/i.test(t)) lineas.push(t);
   }));
   return lineas;
 }
