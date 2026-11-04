@@ -455,3 +455,32 @@
   .pdf-hoja .condiciones-bloque { margin-top: 14px; }
   .pdf-hoja .firma-row { margin-top: 30px; }
   .pdf-hoja .firma-nombres { margin-top: 40px; }
+
+  /* Hoja negra (como las cotizaciones en negro y dorado) */
+  .recibo-card.recibo-oscuro { background: #0B0B09; color: #F2F0E6; border-color: #26241b; }
+  .recibo-oscuro .recibo-header .recibo-title h2 { color: #fff; }
+  .recibo-oscuro .recibo-header .logo-block { box-shadow: 0 0 0 1px #3a3520; }
+  .recibo-oscuro .recibo-info { background: #17160F; }
+  .recibo-oscuro .recibo-info-3 .info-value { color: #F5F5EF; }
+  .recibo-oscuro .recibo-card thead tr, .recibo-card.recibo-oscuro thead tr { background: #C9A227; }
+  .recibo-card.recibo-oscuro th { color: #0B0B09; }
+  .recibo-card.recibo-oscuro td { border-bottom-color: #2A281D; color: #EDEBE0; }
+  .recibo-card.recibo-oscuro td strong { color: #fff; }
+  .recibo-card.recibo-oscuro td .item-sub { color: #A8A596; }
+  .recibo-oscuro .recibo-totals { color: #A8A596; }
+  .recibo-oscuro .presupuesto-section-bar { background: #17160F; color: #EDEBE0; }
+  .recibo-oscuro .recibo-total-bar { background: #C9A227; color: #0B0B09; }
+  .recibo-oscuro .recibo-total-bar .grand-amount { color: #0B0B09; }
+  .recibo-card.recibo-oscuro .condiciones { color: #A8A596; }
+  .recibo-card.recibo-oscuro .condiciones-bloque { color: #D8D5C7; }
+  .recibo-card.recibo-oscuro .cond-titulo { color: #fff; }
+  .recibo-card.recibo-oscuro .firma-row div { border-top-color: #C9A227; }
+  .recibo-card.recibo-oscuro .firma-nombre { color: #fff; }
+  .recibo-card.recibo-oscuro .firma-rol { color: #A8A596; }
+  .recibo-oscuro .recibo-footer { background: #C9A227; color: #0B0B09; }
+  .recibo-oscuro .recibo-footer span, .recibo-oscuro .recibo-footer a { color: #0B0B09; }
+
+  /* Selector de hoja */
+  .tema-recibo { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); flex-wrap: wrap; }
+  .tema-recibo button { background: var(--bg); border: 1px solid var(--border); color: var(--text); font-weight: 700; font-size: 13px; padding: 8px 14px; border-radius: 10px; }
+  .tema-recibo button.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }

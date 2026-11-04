@@ -99,6 +99,7 @@
   // ---------------------------------------------------------------------------
   const HOJA = { ancho: 215.9, alto: 279.4, arriba: 10, abajo: 16, lado: 8 };   // carta, en mm
   const ESCENARIO_PX = 760;                                                      // ancho de la hoja en pantalla
+  const FOTO_PX = 794;                                                           // ancho del "marco" que se fotografía (el de html2pdf)
 
   // Bloques que no se parten; cada uno es una lista de elementos que viajan juntos.
   function unidadesDeHoja(copia) {
@@ -205,6 +206,7 @@
     // La barra negra del pie (SPAZIO LUCE · correo · ciudad) se dibuja fija al fondo de cada hoja.
     const pie = el.querySelector('.recibo-footer');
     const piePartes = pie ? Array.from(pie.children).map(c => c.textContent.trim()).filter(Boolean) : [];
+    const oscuro = el.classList.contains('recibo-oscuro');   // hoja negra o blanca
     const rotulo = 'Cotización' + (q && q.folio ? ' ' + q.folio : '') + (q && q.client ? ' · ' + q.client : '');
 
     // 1) Escenario: copia de la hoja a ancho fijo, fuera de pantalla (la hoja visible no se toca).
@@ -224,7 +226,7 @@
       await imagenesListas(copia);
       const anchoUtilMm = HOJA.ancho - 2 * HOJA.lado;
       const altoUtilMm = HOJA.alto - HOJA.arriba - HOJA.abajo;
-      const pxPorMm = ESCENARIO_PX / anchoUtilMm;
+      const pxPorMm = FOTO_PX / anchoUtilMm;
       const H = altoUtilMm * pxPorMm - 6;   // pequeño colchón: la hoja se vuelve a acomodar al armar cada página
       const paginas = paginarUnidades(unidadesDeHoja(copia), escenario, H);
 
@@ -248,18 +250,22 @@
 
       // 2) Cada página: la hoja con solo sus bloques, fotografiada aparte.
       for (const pag of paginas) {
-        // La hoja de la página va dentro del escenario (en el documento): html2pdf mide su ancho real y
-        // arma su contenedor a ese ancho, sin depender de lo ancha que sea la ventana del usuario.
+        // La hoja de la página va en un marco del ancho de html2pdf y del color de la hoja, con la hoja
+        // centrada: así no queda ninguna franja blanca ni la hoja sale corrida, sea cual sea la ventana.
         const hoja = hojaDePagina(copia, pag);
-        escenario.appendChild(hoja);
+        hoja.style.margin = '0 auto';
+        const marco = document.createElement('div');
+        marco.style.cssText = `width:${FOTO_PX}px;background:${oscuro ? '#0B0B09' : '#ffffff'};`;
+        marco.appendChild(hoja);
+        escenario.appendChild(marco);
         try {
           const canvas = await window.html2pdf().set({
             // scrollX/scrollY en 0: con la ventana desplazada html2canvas dibuja la hoja corrida.
-            html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0 },
-          }).from(hoja).toCanvas().get('canvas');
+            html2canvas: { scale: 2, useCORS: true, backgroundColor: oscuro ? '#0B0B09' : '#ffffff', scrollX: 0, scrollY: 0 },
+          }).from(marco).toCanvas().get('canvas');
           canvases.push(canvas);
         } finally {
-          hoja.remove();
+          marco.remove();
         }
       }
     } finally {
@@ -271,6 +277,10 @@
       .from(document.createElement('canvas'), 'canvas').toPdf().get('pdf');
     canvases.forEach(c => {
       pdf.addPage();
+      if (oscuro) {   // en la hoja negra toda la página va en negro, también los márgenes
+        pdf.setFillColor(11, 11, 9);
+        pdf.rect(0, 0, HOJA.ancho, HOJA.alto, 'F');
+      }
       const alto = (c.height / c.width) * (HOJA.ancho - 2 * HOJA.lado);
       pdf.addImage(c.toDataURL('image/jpeg', 0.95), 'JPEG', HOJA.lado, HOJA.arriba, HOJA.ancho - 2 * HOJA.lado, alto);
     });
@@ -286,19 +296,19 @@
         pdf.setFont('helvetica', 'bold');
         pdf.text('SPAZIO LUCE', HOJA.lado, 6.5);
         pdf.setFont('helvetica', 'normal');
-        pdf.setTextColor(120, 120, 120);
+        if (oscuro) pdf.setTextColor(170, 170, 160); else pdf.setTextColor(120, 120, 120);
         pdf.text(rotulo + ' · continuación', HOJA.ancho - HOJA.lado, 6.5, { align: 'right' });
         pdf.setDrawColor(201, 162, 39);
         pdf.setLineWidth(0.4);
         pdf.line(HOJA.lado, 8, HOJA.ancho - HOJA.lado, 8);
       }
-      pdf.setTextColor(130, 130, 130);
+      if (oscuro) pdf.setTextColor(170, 170, 160); else pdf.setTextColor(130, 130, 130);
       pdf.text(rotulo, HOJA.lado, HOJA.alto - 14);
       pdf.text('Página ' + i + ' de ' + n, HOJA.ancho - HOJA.lado, HOJA.alto - 14, { align: 'right' });
       if (piePartes.length) {
-        pdf.setFillColor(17, 17, 17);
+        if (oscuro) pdf.setFillColor(201, 162, 39); else pdf.setFillColor(17, 17, 17);
         pdf.rect(HOJA.lado, HOJA.alto - 11, HOJA.ancho - 2 * HOJA.lado, 7, 'F');
-        pdf.setTextColor(201, 162, 39);
+        if (oscuro) pdf.setTextColor(11, 11, 9); else pdf.setTextColor(201, 162, 39);
         pdf.setFont('helvetica', 'bold');
         pdf.text(piePartes[0], HOJA.lado + 4, HOJA.alto - 6.4);
         pdf.setFont('helvetica', 'normal');
@@ -331,6 +341,12 @@
 
   // API para el resto de la app (envio por WhatsApp / correo).
   window.spazioPdf = {
+    // Tira el PDF ya preparado (p. ej. al cambiar la hoja de blanca a negra) y adelanta el nuevo.
+    invalidar() {
+      pdfCache = null;
+      const q = ultimaCotizacion;
+      if (q) setTimeout(() => { if (q === ultimaCotizacion) pdfDe(q).promesa.catch(err => console.warn('PDF previo:', err)); }, 300);
+    },
     // File ya generado de la cotizacion en pantalla, o null si aun se prepara.
     listo() {
       if (!ultimaCotizacion || !pdfCache || pdfCache.quote !== ultimaCotizacion || !pdfCache.listo) return null;
@@ -405,9 +421,9 @@
     estadoEl = document.createElement('p');
     estadoEl.style.cssText = 'font-size:12px;color:var(--text-secondary);margin-top:10px;';
 
-    const primero = acciones.querySelector('button');
+    const primero = acciones.querySelector(':scope > button');   // solo botones directos (el selector de hoja blanca/negra lleva los suyos)
     acciones.insertBefore(btnGuardar, primero ? primero.nextSibling : null);
-    const p = acciones.querySelector('p');
+    const p = acciones.querySelector(':scope > p');
     acciones.insertBefore(estadoEl, p);
     estadoEl.after(btnCarpeta);
     pintarEstado();

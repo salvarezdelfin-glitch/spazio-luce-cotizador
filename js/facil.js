@@ -88,3 +88,21 @@ async function verPdfCotizacion() {
     window.print();
   }
 }
+
+// ---------- Hoja blanca o negra ----------
+// Cambia cómo se ve la cotización y cómo sale el PDF. La elección se recuerda en este equipo.
+function temaRecibo() {
+  try { return localStorage.getItem('sl_tema_recibo') === 'oscuro' ? 'oscuro' : 'claro'; } catch (e) { return 'claro'; }
+}
+function aplicarTemaRecibo() {
+  const t = temaRecibo();
+  const card = document.getElementById('reciboCard');
+  if (card) card.classList.toggle('recibo-oscuro', t === 'oscuro');
+  document.querySelectorAll('.tema-recibo button').forEach(b => b.classList.toggle('active', b.dataset.t === t));
+}
+function setTemaRecibo(t) {
+  try { localStorage.setItem('sl_tema_recibo', t === 'oscuro' ? 'oscuro' : 'claro'); } catch (e) { /* sin almacenamiento: vale solo esta vez */ }
+  aplicarTemaRecibo();
+  if (window.spazioPdf && window.spazioPdf.invalidar) window.spazioPdf.invalidar();   // el PDF ya preparado era del otro color
+}
+aplicarTemaRecibo();

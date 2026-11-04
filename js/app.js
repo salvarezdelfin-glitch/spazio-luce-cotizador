@@ -265,7 +265,7 @@ function showToast(msg) {
 
 // Versión que se ve abajo a la izquierda (para comprobar que la app ya se actualizó).
 // Se cambia en cada publicación.
-const APP_VERSION = '4 nov 2026 · PDF centrado y compacto';
+const APP_VERSION = '4 nov 2026 · Hoja blanca o negra en el PDF';
 
 function showApp() {
   document.getElementById('loginScreen').classList.add('hidden');
@@ -1550,6 +1550,7 @@ async function editarDesdeRecibo(quote) {
 
 function wireReciboButtons(quote) {
   // Avisa a guardar-en-carpeta.js qué cotización está en pantalla (también la de Presupuestos, que no pasa por renderRecibo).
+  if (typeof aplicarTemaRecibo === 'function') aplicarTemaRecibo();   // hoja blanca o negra, según lo elegido
   if (typeof window.alMostrarRecibo === 'function') window.alMostrarRecibo(quote);
   const waMsg = encodeURIComponent(mensajeCotizacion(quote, false));
   const phoneDigits = waPhone(quote.phone);

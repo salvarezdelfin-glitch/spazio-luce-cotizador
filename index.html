@@ -640,6 +640,11 @@
       </div>
 
       <div class="recibo-actions no-print">
+        <div class="tema-recibo">
+          <span>Hoja:</span>
+          <button data-t="claro" type="button" onclick="setTemaRecibo('claro')">☀️ Blanca</button>
+          <button data-t="oscuro" type="button" onclick="setTemaRecibo('oscuro')">🌑 Negra</button>
+        </div>
         <button class="btn-primary" style="max-width:220px;display:inline-block;margin-right:10px;" onclick="verPdfCotizacion()">🖨️ Ver / Imprimir PDF</button>
         <button class="btn-accent-sm" id="reciboEditBtn" style="margin-right:10px;">✏️ Editar cotización</button>
         <button class="btn-accent-sm" id="reciboWhatsBtn" style="margin-right:10px;">Enviar por WhatsApp (PDF + mensaje)</button>
