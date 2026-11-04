@@ -265,7 +265,7 @@ function showToast(msg) {
 
 // Versión que se ve abajo a la izquierda (para comprobar que la app ya se actualizó).
 // Se cambia en cada publicación.
-const APP_VERSION = '4 nov 2026 · Ganancia ÷ 0.70 en precios originales';
+const APP_VERSION = '4 nov 2026 · Modo fácil: inicio, pasos y letra grande';
 
 function showApp() {
   document.getElementById('loginScreen').classList.add('hidden');
@@ -1092,6 +1092,7 @@ function recalcTotals() {
   const iva = 0;
   const total = subtotal;
   document.getElementById('totalVal').textContent = fmtMoney(total);
+  if (typeof actualizarBarraCotizacion === 'function') actualizarBarraCotizacion(total);
   return { subtotal, iva, total };
 }
 
@@ -1148,7 +1149,7 @@ async function generateQuote() {
 
 async function generateQuoteImpl() {
   const client = document.getElementById('quoteClient').value.trim();
-  if (!client) { showToast('Escribe el nombre del cliente'); return; }
+  if (!client) { faltaCampo('quoteClient', 'Escribe el nombre del cliente'); return; }
   const rows = [];
 
   document.querySelectorAll('.product-row-coverage').forEach(row => {
@@ -1182,7 +1183,7 @@ async function generateQuoteImpl() {
     }
   });
 
-  if (rows.length === 0) { showToast('Agrega al menos un producto'); return; }
+  if (rows.length === 0) { showToast('Agrega al menos un producto: búscalo arriba y pulsa "+ Agregar", y escribe la cantidad o las medidas'); return; }
   const totals = recalcTotals();
   const folio = document.getElementById('quoteFolio').value;
   if (!folio) { showToast('Falta el folio — revisa tu conexión y vuelve a abrir el Cotizador'); return; }
@@ -1642,6 +1643,7 @@ function recalcPresuTotals() {
   document.getElementById('presuSubtotalVal').textContent = fmtMoney(subtotal);
   document.getElementById('presuIvaVal').textContent = ivaOn ? fmtMoney(iva) : 'No incluido';
   document.getElementById('presuTotalVal').textContent = fmtMoney(total);
+  if (typeof actualizarBarraPresupuesto === 'function') actualizarBarraPresupuesto(total);
   return { subtotal, iva, total };
 }
 
@@ -1774,7 +1776,7 @@ async function generatePresupuesto() {
 
 async function generatePresupuestoImpl() {
   const client = document.getElementById('presuClient').value.trim();
-  if (!client) { showToast('Escribe el nombre del cliente'); return; }
+  if (!client) { faltaCampo('presuClient', 'Escribe el nombre del cliente'); return; }
 
   const rows = [];
   document.querySelectorAll('.presu-row').forEach(row => {
@@ -1785,7 +1787,7 @@ async function generatePresupuestoImpl() {
     const price = parseFloat(row.querySelector('.ps-price').value) || 0;
     if (name) rows.push({ name, unit, section, qty, price, importe: qty * price });
   });
-  if (rows.length === 0) { showToast('Agrega al menos un renglón'); return; }
+  if (rows.length === 0) { showToast('Agrega al menos un renglón y escribe su Concepto (el nombre del trabajo)'); return; }
 
   const totals = recalcPresuTotals();
   let folio = document.getElementById('presuFolio').value.trim();

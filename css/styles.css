@@ -96,7 +96,7 @@
   .app-version { margin-top: 8px; font-size: 10px; color: var(--text-secondary); opacity: .6; }
   .logout-btn { background: transparent; color: var(--red); font-size: 12px; font-weight: 600; }
 
-  main { flex: 1; padding: 28px; overflow-x: hidden; }
+  main { flex: 1; padding: 28px; overflow-x: hidden; overflow-x: clip; /* clip no crea un contenedor de scroll: deja que la barra fija (sticky) funcione */ min-width: 0; }
   .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 26px; flex-wrap: wrap; gap: 14px; }
   .topbar h2 { margin: 0; font-size: 22px; }
   .topbar .sub { color: var(--text-secondary); font-size: 13px; margin-top: 4px; }
@@ -188,7 +188,7 @@
   .item-photo-box { grid-column: 1 / -1; margin-top: 6px; }
   .item-photo-box img { max-height: 90px; max-width: 140px; border-radius: 8px; border: 1px solid var(--border); object-fit: cover; }
   .recibo-card .item-photo-box img { max-height: 70px; max-width: 100px; }
-  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--accent); color: #0B0B09; padding: 12px 18px; border-radius: 10px; font-size: 13px; font-weight: 700; box-shadow: 0 8px 24px rgba(0,0,0,.4); z-index: 50; }
+  .toast { position: fixed; bottom: 96px; right: 24px; background: var(--accent); color: #0B0B09; padding: 12px 18px; border-radius: 10px; font-size: 13px; font-weight: 700; box-shadow: 0 8px 24px rgba(0,0,0,.4); z-index: 50; }
   .recibo-card {
     background: #ffffff;
     color: #1a1a1a;
@@ -367,3 +367,56 @@
   .margen-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .margen-pct { max-width: 80px; padding: 8px 10px; }
   .margen-modo { max-width: 260px; padding: 8px 10px; }
+
+  /* ===== Más fácil de usar ===== */
+  /* Tamaño de letra: zoom a la interfaz, menos a la hoja de la cotización (para que el PDF salga igual). */
+  aside, main > div:not(#view-recibo), #view-recibo > .topbar, #view-recibo > .recibo-actions { zoom: var(--ui-zoom, 1); }
+  .tam-letra { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; color: var(--text-secondary); font-size: 12px; }
+  .tam-letra span { margin-right: 4px; }
+  .tam-letra button { background: var(--bg); border: 1px solid var(--border); color: var(--text); font-weight: 700; border-radius: 8px; width: 34px; height: 34px; padding: 0; line-height: 1; }
+  .tam-letra button.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .ayuda-btn { width: 100%; margin-bottom: 10px; border: 1px solid var(--border); }
+
+  /* Inicio: botones grandes */
+  .inicio-titulo { font-size: 18px; font-weight: 700; margin: 0 0 12px; }
+  .inicio-acciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-bottom: 26px; }
+  .inicio-btn { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left; background: var(--panel); border: 1px solid var(--border); color: var(--text); border-radius: 16px; padding: 18px; min-height: 116px; }
+  .inicio-btn .ico { font-size: 28px; line-height: 1; margin-bottom: 4px; }
+  .inicio-btn b { font-size: 16px; }
+  .inicio-btn small { font-size: 12px; color: var(--text-secondary); line-height: 1.4; }
+  .inicio-btn:hover, .inicio-btn:focus-visible { border-color: var(--accent); }
+  .inicio-principal { background: var(--accent); border-color: var(--accent); color: #0B0B09; }
+  .inicio-principal small { color: rgba(11,11,9,.75); }
+  .inicio-principal:hover, .inicio-principal:focus-visible { filter: brightness(1.05); }
+
+  /* Pasos del cotizador */
+  .paso { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 700; margin: 4px 0 14px; }
+  .paso small { font-size: 12px; font-weight: 500; color: var(--text-secondary); }
+  .paso-n { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; flex: 0 0 28px; border-radius: 50%; background: var(--accent); color: #0B0B09; font-size: 14px; }
+  .quote-form .paso:not(:first-child) { margin-top: 22px; }
+
+  /* Barra fija con el total y el botón de generar */
+  .accion-bar { position: sticky; bottom: 0; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 12px 16px; margin: 4px 0 18px; box-shadow: 0 -6px 18px rgba(0,0,0,.35); }
+  .accion-info { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 14px; color: var(--text-secondary); }
+  .accion-info b { color: var(--text); font-size: 18px; }
+  .accion-info .link-btn { font-size: 13px; }
+  .accion-btns { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .accion-btns .btn-primary { margin-top: 0; width: auto; padding: 12px 22px; font-size: 15px; }
+
+  /* Lo recién agregado parpadea; el dato que falta se marca */
+  @keyframes filaNueva { from { background: var(--accent-soft); box-shadow: 0 0 0 2px var(--accent); } to { background: transparent; box-shadow: 0 0 0 0 transparent; } }
+  .row-nueva { animation: filaNueva 1.6s ease-out; border-radius: 10px; }
+  .campo-falta { border-color: var(--red) !important; box-shadow: 0 0 0 3px rgba(242,124,124,.25); }
+
+  /* Foco visible (teclado / pantalla táctil) */
+  .input-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  button:focus-visible, a:focus-visible, select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+  /* Ayuda */
+  .ayuda-bloque { margin: 14px 0; }
+  .ayuda-bloque h3 { margin: 0 0 6px; font-size: 16px; }
+  .ayuda-bloque p, .ayuda-bloque li { font-size: 14px; line-height: 1.6; color: var(--text); }
+  .ayuda-bloque ol { margin: 0; padding-left: 22px; }
+  @media print { .accion-bar, .tam-letra, .ayuda-btn { display: none !important; } }
+  /* Con zoom, las ventanas emergentes no deben pasarse de la pantalla */
+  main > div[id$="Modal"] > .card { max-height: calc(88vh / var(--ui-zoom, 1)) !important; }

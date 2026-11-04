@@ -77,16 +77,23 @@
     <div class="sidebar-logo"><img src="assets/logo.jpg" alt="Spazio Luce" /></div>
     <div class="nav-section-title">Menú</div>
     <nav>
-      <button class="nav-item active" data-view="dashboard" onclick="showView('dashboard')">📊 Dashboard</button>
+      <button class="nav-item active" data-view="dashboard" onclick="showView('dashboard')">🏠 Inicio</button>
       <button class="nav-item" data-view="clientes" onclick="showView('clientes')">👤 Clientes</button>
       <button class="nav-item" data-view="directorio" onclick="showView('directorio')">📒 Directorio</button>
-      <button class="nav-item" data-view="cotizador" onclick="showView('cotizador')">🧾 Cotizador</button>
-      <button class="nav-item" data-view="presupuestos" onclick="showView('presupuestos')">📋 Presupuestos</button>
+      <button class="nav-item" data-view="cotizador" onclick="showView('cotizador')" title="Hacer una cotización eligiendo productos del catálogo">🧾 Cotizar con catálogo</button>
+      <button class="nav-item" data-view="presupuestos" onclick="showView('presupuestos')" title="Hacer un presupuesto escribiendo los conceptos y precios, o subiendo un Excel/PDF">📋 Presupuesto a mano</button>
       <button class="nav-item" data-view="contabilidad" onclick="showView('contabilidad')">💵 Contabilidad</button>
       <button class="nav-item" data-view="reportes" onclick="showView('reportes')">📈 Reportes</button>
       <a class="nav-item" href="crm/" style="text-decoration:none;">🗂️ CRM</a>
     </nav>
     <div class="sidebar-footer">
+      <button class="nav-item ayuda-btn" onclick="abrirAyuda()">❓ ¿Cómo se usa?</button>
+      <div class="tam-letra" title="Tamaño de la letra">
+        <span>Letra</span>
+        <button data-z="1" style="font-size:12px" onclick="setTamLetra(1)" aria-label="Letra normal">A</button>
+        <button data-z="1.2" style="font-size:16px" onclick="setTamLetra(1.2)" aria-label="Letra grande">A</button>
+        <button data-z="1.4" style="font-size:20px" onclick="setTamLetra(1.4)" aria-label="Letra muy grande">A</button>
+      </div>
       <div class="user-pill">
         <span id="currentUserLabel">—</span>
         <button class="logout-btn" onclick="handleLogout()">Salir</button>
@@ -99,10 +106,17 @@
     <div id="view-dashboard">
       <div class="topbar">
         <div>
-          <h2>Dashboard</h2>
+          <h2>Inicio</h2>
           <div class="sub" id="dashboardDate"></div>
         </div>
         <button class="btn-accent-sm" onclick="showView('cotizador')">+ Nueva cotización</button>
+      </div>
+      <div class="inicio-titulo">¿Qué quieres hacer?</div>
+      <div class="inicio-acciones">
+        <button class="inicio-btn inicio-principal" onclick="showView('cotizador')"><span class="ico">🧾</span><b>Hacer una cotización</b><small>Eliges productos del catálogo</small></button>
+        <button class="inicio-btn" onclick="showView('presupuestos')"><span class="ico">📋</span><b>Hacer un presupuesto</b><small>Escribes los precios o subes un Excel o PDF</small></button>
+        <button class="inicio-btn" onclick="showView('directorio')"><span class="ico">📒</span><b>Buscar un teléfono o dirección</b><small>Clientes, albañiles, proveedores</small></button>
+        <button class="inicio-btn" onclick="document.getElementById('dashQuotesList').scrollIntoView({behavior:'smooth',block:'start'})"><span class="ico">📂</span><b>Ver cotizaciones anteriores</b><small>Para verlas, corregirlas o mandarlas otra vez</small></button>
       </div>
       <div class="cards-grid" id="statsGrid"></div>
       <div class="panel hidden" id="dashSeguimiento" style="margin-bottom:18px;">
@@ -158,6 +172,40 @@
         <button class="btn-primary" id="clienteSaveBtn" onclick="saveCliente()">Guardar</button>
         <button class="link-btn" style="display:block; margin:14px auto 0;" onclick="closeClienteModal()">Cerrar</button>
         <div id="clienteHistorial" style="margin-top:18px;"></div>
+      </div>
+    </div>
+
+    <div id="ayudaModal" class="hidden" style="position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:300; display:flex; align-items:center; justify-content:center; padding:20px;" onclick="if(event.target===this)cerrarAyuda()">
+      <div class="card ayuda-card" style="max-width:640px; width:100%; max-height:90vh; overflow-y:auto;">
+        <h1 style="font-size:20px;">¿Cómo se usa?</h1>
+        <div class="ayuda-bloque">
+          <h3>🧾 Hacer una cotización</h3>
+          <ol>
+            <li>En el menú pulsa <b>Cotizar con catálogo</b> (o el botón grande del Inicio).</li>
+            <li>Escribe el <b>nombre del cliente</b>.</li>
+            <li>Busca el producto (por ejemplo "persiana" o "panel") y pulsa <b>+ Agregar</b>. Si no lo encuentras, usa <b>+ Agregar producto manual</b>.</li>
+            <li>Escribe la <b>cantidad</b> o las <b>medidas</b> en el renglón que apareció.</li>
+            <li>Abajo, pulsa el botón amarillo <b>Generar Cotización</b>. Ese botón y el total te siguen mientras bajas.</li>
+            <li>En la pantalla siguiente: <b>Guardar en carpeta</b> o <b>Enviar por WhatsApp</b>.</li>
+          </ol>
+        </div>
+        <div class="ayuda-bloque">
+          <h3>✏️ Corregir una cotización ya hecha</h3>
+          <p>En la pantalla de la cotización pulsa <b>Editar cotización</b>. O, desde el Inicio, busca la cotización en la lista y pulsa <b>Editar</b>. Al terminar, pulsa <b>Guardar cambios</b>.</p>
+        </div>
+        <div class="ayuda-bloque">
+          <h3>📋 Hacer un presupuesto a mano</h3>
+          <p>Pulsa <b>Presupuesto a mano</b>. Escribe el cliente y agrega renglones con <b>+ Agregar renglón manual</b> (cada uno con su Concepto, cantidad y precio). También puedes subir un Excel, PDF o Word.</p>
+        </div>
+        <div class="ayuda-bloque">
+          <h3>📒 Buscar un teléfono o una dirección</h3>
+          <p>Pulsa <b>Directorio</b> y escribe en el buscador el nombre, la colonia o el oficio (por ejemplo "albañil").</p>
+        </div>
+        <div class="ayuda-bloque">
+          <h3>🔠 ¿Se ve muy chico o muy grande?</h3>
+          <p>Abajo en el menú, junto a "Letra", hay tres letras <b>A</b>: elige la que se te lea mejor.</p>
+        </div>
+        <button class="btn-primary" onclick="cerrarAyuda()">Entendido</button>
       </div>
     </div>
 
@@ -274,9 +322,10 @@
 
     <div id="view-cotizador" class="hidden">
       <div class="topbar">
-        <div><h2>Cotizador</h2><div class="sub">Genera una nueva cotización · agrega todos los productos que necesites, sin límite</div></div>
+        <div><h2>Cotizar con catálogo</h2><div class="sub">Tres pasos: el cliente, los productos y generar · el total y el botón para generar te siguen abajo</div></div>
       </div>
       <div class="quote-form">
+        <div class="paso"><span class="paso-n">1</span> ¿Para quién es la cotización?</div>
         <div class="form-row">
           <div class="field">
             <label>Nombre del cliente</label>
@@ -308,6 +357,7 @@
           </div>
         </div>
 
+        <div class="paso"><span class="paso-n">2</span> Agrega los productos <small>(busca abajo y pulsa "+ Agregar", o escribe en el agregado rápido)</small></div>
         <div class="quickadd-box">
           <div class="quickadd-label">Agregado rápido</div>
           <div class="quickadd-row">
@@ -346,19 +396,27 @@
           Excel: columnas <b>Producto</b>, <b>Cantidad</b> y <b>Precio Unitario</b> (y opcional Sección/Unidad). PDF: intenta leer tablas de precios o cotizaciones automáticamente — revisa siempre lo que se agregó antes de generar, la lectura de PDF no es perfecta.
         </p>
 
+        <div class="paso"><span class="paso-n">3</span> Revisa el total y genera <small>(el botón amarillo de abajo)</small></div>
         <div class="totals-box">
           <div class="grand">Total: <span id="totalVal">$0.00</span></div>
         </div>
       </div>
-      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-        <button class="btn-primary" id="quoteGenerateBtn" style="max-width:260px" onclick="generateQuote()">📄 Generar Cotización</button>
-        <button class="link-btn hidden" id="quoteCancelEditBtn" onclick="cancelEditQuote()">Cancelar edición</button>
+      <div class="accion-bar">
+        <div class="accion-info">
+          <span id="quoteCount">Aún no hay productos</span>
+          <b>Total: <span id="quoteTotalBar">$0.00</span></b>
+          <button class="link-btn" onclick="verListaCotizacion()">Ver mi lista ↓</button>
+        </div>
+        <div class="accion-btns">
+          <button class="link-btn hidden" id="quoteCancelEditBtn" onclick="cancelEditQuote()">Cancelar edición</button>
+          <button class="btn-primary" id="quoteGenerateBtn" onclick="generateQuote()">📄 Generar Cotización</button>
+        </div>
       </div>
     </div>
 
     <div id="view-presupuestos" class="hidden">
       <div class="topbar">
-        <div><h2>Presupuestos</h2><div class="sub">Sube un presupuesto ya armado (Excel, PDF o Word) y conviértelo al formato Spazio Luce — no usa el catálogo de productos</div></div>
+        <div><h2>Presupuesto a mano</h2><div class="sub">Escribe tú los conceptos y precios, o sube un presupuesto ya armado (Excel, PDF o Word) y se pasa al formato Spazio Luce · no usa el catálogo</div></div>
       </div>
 
       <div class="quote-form">
@@ -431,9 +489,16 @@
           <div class="grand">Total: <span id="presuTotalVal">$0.00</span></div>
         </div>
       </div>
-      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-        <button class="btn-primary" id="presuGenerateBtn" style="max-width:320px" onclick="generatePresupuesto()">📄 Generar Presupuesto Spazio Luce</button>
-        <button class="link-btn hidden" id="presuCancelEditBtn" onclick="cancelEditQuote()">Cancelar edición</button>
+      <div class="accion-bar">
+        <div class="accion-info">
+          <span id="presuCount">Aún no hay renglones</span>
+          <b>Total: <span id="presuTotalBar">$0.00</span></b>
+          <button class="link-btn" onclick="verListaPresupuesto()">Ver mi lista ↓</button>
+        </div>
+        <div class="accion-btns">
+          <button class="link-btn hidden" id="presuCancelEditBtn" onclick="cancelEditQuote()">Cancelar edición</button>
+          <button class="btn-primary" id="presuGenerateBtn" onclick="generatePresupuesto()">📄 Generar Presupuesto Spazio Luce</button>
+        </div>
       </div>
     </div>
 
@@ -559,6 +624,7 @@
 <script src="js/directorio.js"></script>
 <script src="js/prospectos.js"></script>
 <script src="js/margen.js"></script>
+<script src="js/facil.js"></script>
 <script src="js/guardar-en-carpeta.js" data-app="spazio-luce" data-cliente="client" data-carpeta-sugerida="Documentos\Spazio Luce\02 Clientes y Cotizaciones"></script>
 <script>
   if ('serviceWorker' in navigator) {
