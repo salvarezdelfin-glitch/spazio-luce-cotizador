@@ -442,3 +442,16 @@
   .formato-link { display: block; text-align: center; text-decoration: none; margin-top: 8px; color: var(--text-secondary); }
   .formato-link:hover { border-color: var(--accent); color: var(--accent); }
   .formato-link-chico { display: inline-block; margin: 10px 0 0 14px; font-size: 13px; font-weight: 600; color: var(--accent); }
+
+  /* Hoja del PDF: mismo diseño, un poco más compacta para que quepa más por página (sin borde del marco) */
+  .recibo-card.pdf-hoja { border: none; border-radius: 0; }
+  .pdf-hoja .recibo-header { padding: 16px 32px 12px; }
+  .pdf-hoja .recibo-info { margin-top: 14px; padding: 12px 20px; }
+  .pdf-hoja table { margin-top: 12px; }
+  .pdf-hoja td { padding: 8px 10px; }
+  .pdf-hoja .presupuesto-section-bar { margin-top: 12px; }
+  .pdf-hoja .recibo-total-bar { margin-top: 10px; padding: 11px 20px; }
+  .pdf-hoja .condiciones { margin-top: 12px; }
+  .pdf-hoja .condiciones-bloque { margin-top: 14px; }
+  .pdf-hoja .firma-row { margin-top: 30px; }
+  .pdf-hoja .firma-nombres { margin-top: 40px; }

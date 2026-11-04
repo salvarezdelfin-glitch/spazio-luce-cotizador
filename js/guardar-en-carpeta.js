@@ -212,6 +212,7 @@
     escenario.style.cssText = `position:absolute;left:-10000px;top:0;width:${ESCENARIO_PX}px;background:#fff;`;
     const copia = el.cloneNode(true);
     copia.removeAttribute('id');
+    copia.classList.add('pdf-hoja');
     copia.style.cssText += `;width:${ESCENARIO_PX}px;max-width:none;margin:0;border-radius:0;box-shadow:none;position:static;`;
     const pieCopia = copia.querySelector('.recibo-footer');
     if (pieCopia) pieCopia.remove();
@@ -247,12 +248,19 @@
 
       // 2) Cada página: la hoja con solo sus bloques, fotografiada aparte.
       for (const pag of paginas) {
-        const canvas = await window.html2pdf().set({
-          // scrollX/scrollY en 0: con la ventana desplazada html2canvas dibuja la hoja corrida.
-          // width fijo: el contenedor de html2pdf es más ancho que la hoja y dejaría un borde en blanco.
-          html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0, width: ESCENARIO_PX, windowWidth: ESCENARIO_PX },
-        }).from(hojaDePagina(copia, pag)).toCanvas().get('canvas');
-        canvases.push(canvas);
+        // La hoja de la página va dentro del escenario (en el documento): html2pdf mide su ancho real y
+        // arma su contenedor a ese ancho, sin depender de lo ancha que sea la ventana del usuario.
+        const hoja = hojaDePagina(copia, pag);
+        escenario.appendChild(hoja);
+        try {
+          const canvas = await window.html2pdf().set({
+            // scrollX/scrollY en 0: con la ventana desplazada html2canvas dibuja la hoja corrida.
+            html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0 },
+          }).from(hoja).toCanvas().get('canvas');
+          canvases.push(canvas);
+        } finally {
+          hoja.remove();
+        }
       }
     } finally {
       escenario.remove();

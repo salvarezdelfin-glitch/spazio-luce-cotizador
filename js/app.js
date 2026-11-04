@@ -265,7 +265,7 @@ function showToast(msg) {
 
 // Versión que se ve abajo a la izquierda (para comprobar que la app ya se actualizó).
 // Se cambia en cada publicación.
-const APP_VERSION = '4 nov 2026 · PDF con páginas bien cortadas';
+const APP_VERSION = '4 nov 2026 · PDF centrado y compacto';
 
 function showApp() {
   document.getElementById('loginScreen').classList.add('hidden');
