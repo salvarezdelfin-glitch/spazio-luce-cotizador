@@ -8,6 +8,7 @@ const APP_SHELL = [
   './js/app.js',
   './js/directorio.js',
   './js/prospectos.js',
+  './js/margen.js',
   './manifest.json',
   './assets/logo.jpg',
   './icons/icon-192.png',

@@ -265,7 +265,7 @@ function showToast(msg) {
 
 // Versión que se ve abajo a la izquierda (para comprobar que la app ya se actualizó).
 // Se cambia en cada publicación.
-const APP_VERSION = '4 nov 2026 · Editar desde la cotización generada';
+const APP_VERSION = '4 nov 2026 · Sumar ganancia a precios originales';
 
 function showApp() {
   document.getElementById('loginScreen').classList.add('hidden');
@@ -1593,6 +1593,7 @@ function preparePresupuestos() {
   document.getElementById('presuContact').value = '';
   document.getElementById('presuNote').value = '';
   document.getElementById('presuIvaToggle').checked = false;
+  if (typeof resetMargenPresupuesto === 'function') resetMargenPresupuesto();
   recalcPresuTotals();
 }
 

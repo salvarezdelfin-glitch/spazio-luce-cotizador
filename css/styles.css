@@ -360,3 +360,10 @@
   .dir-tag-oro { color: var(--gold); border-color: var(--gold); }
   .dir-aviso { color: var(--gold); opacity: 1 !important; }
   .pros-estatus { background: var(--panel-alt); color: var(--text); }
+
+  /* Presupuestos: sumar ganancia a precios originales */
+  .margen-box { margin-top: 14px; padding: 12px 14px; border: 1px dashed var(--border); border-radius: 12px; }
+  .margen-title { font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px; }
+  .margen-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .margen-pct { max-width: 80px; padding: 8px 10px; }
+  .margen-modo { max-width: 260px; padding: 8px 10px; }

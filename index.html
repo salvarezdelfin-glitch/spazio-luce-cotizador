@@ -412,6 +412,19 @@
         <div id="presupuestoRows" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;"></div>
         <button class="add-row-btn" onclick="addPresuRow()">+ Agregar renglón manual</button>
 
+        <div class="margen-box no-print">
+          <div class="margen-title">¿Los precios son los originales del proveedor?</div>
+          <div class="margen-row">
+            <div class="input-wrap margen-pct"><input id="margenPct" type="number" min="1" max="99" step="1" value="30" /></div><span>%</span>
+            <div class="input-wrap margen-modo"><select id="margenModo">
+              <option value="sumar">sumar al precio (× 1.30)</option>
+              <option value="venta">ganancia sobre la venta (÷ 0.70)</option>
+            </select></div>
+            <button class="btn-accent-sm" style="width:auto;" onclick="aplicarMargenPresupuesto()">Sumar a los precios</button>
+            <button class="btn-ghost-sm hidden" id="margenDeshacerBtn" onclick="deshacerMargenPresupuesto()">↩ Deshacer</button>
+          </div>
+        </div>
+
         <div class="totals-box">
           <div>Subtotal: <span id="presuSubtotalVal">$0.00</span></div>
           <div>IVA: <span id="presuIvaVal">No incluido</span></div>
@@ -545,6 +558,7 @@
 <script src="js/app.js"></script>
 <script src="js/directorio.js"></script>
 <script src="js/prospectos.js"></script>
+<script src="js/margen.js"></script>
 <script src="js/guardar-en-carpeta.js" data-app="spazio-luce" data-cliente="client" data-carpeta-sugerida="Documentos\Spazio Luce\02 Clientes y Cotizaciones"></script>
 <script>
   if ('serviceWorker' in navigator) {
