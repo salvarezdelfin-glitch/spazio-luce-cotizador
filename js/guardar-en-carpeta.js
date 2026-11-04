@@ -93,6 +93,14 @@
   async function generarPdfNuevo(q) {
     await cargarHtml2pdf();
     const el = document.getElementById('reciboCard');
+    // La barra negra del pie (SPAZIO LUCE · correo · ciudad) se dibuja fija al fondo de cada hoja en vez de
+    // ir dentro de la hoja: así nunca se parte ni queda sola en una página extra.
+    const pie = el.querySelector('.recibo-footer');
+    const piePartes = pie ? Array.from(pie.children).map(c => c.textContent.trim()).filter(Boolean) : [];
+    // Se genera desde una copia sin la barra (la hoja en pantalla no se toca).
+    const copia = el.cloneNode(true);
+    const pieCopia = copia.querySelector('.recibo-footer');
+    if (pieCopia) pieCopia.remove();
     const rotulo = 'Cotización' + (q && q.folio ? ' ' + q.folio : '') + (q && q.client ? ' · ' + q.client : '');
     return window.html2pdf().set({
       margin: [10, 8, 16, 8],
@@ -103,9 +111,10 @@
       jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
       // Lo que no debe partirse entre dos páginas: renglones, encabezados, total y todo el cierre
       // (condiciones y firmas pasan juntos a la página siguiente si no caben).
-      pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.recibo-header', '.recibo-info', '.presupuesto-section-bar', '.recibo-totals', '.recibo-cierre', '.condiciones-bloque', '.firma-row', '.recibo-footer'] },
-    }).from(el).toPdf().get('pdf').then(pdf => {
-      // Pie de cada página: cotización y cliente a la izquierda, "Página X de N" a la derecha.
+      pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.recibo-header', '.recibo-info', '.presupuesto-section-bar', '.recibo-totals', '.recibo-cierre', '.condiciones-bloque', '.firma-row'] },
+    }).from(copia).toPdf().get('pdf').then(pdf => {
+      // Pie de cada página: barra negra con los datos de Spazio Luce y, arriba, la cotización/cliente
+      // a la izquierda y "Página X de N" a la derecha.
       const n = pdf.internal.getNumberOfPages();
       const ancho = pdf.internal.pageSize.getWidth();
       const alto = pdf.internal.pageSize.getHeight();
@@ -113,8 +122,20 @@
         pdf.setPage(i);
         pdf.setFontSize(8);
         pdf.setTextColor(130, 130, 130);
-        pdf.text(rotulo, 8, alto - 7);
-        pdf.text('Página ' + i + ' de ' + n, ancho - 8, alto - 7, { align: 'right' });
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(rotulo, 8, alto - 14);
+        pdf.text('Página ' + i + ' de ' + n, ancho - 8, alto - 14, { align: 'right' });
+        if (piePartes.length) {
+          pdf.setFillColor(17, 17, 17);
+          pdf.rect(8, alto - 11, ancho - 16, 7, 'F');
+          pdf.setTextColor(201, 162, 39);
+          pdf.setFontSize(8);
+          pdf.setFont('helvetica', 'bold');
+          pdf.text(piePartes[0], 12, alto - 6.4);
+          pdf.setFont('helvetica', 'normal');
+          if (piePartes[1]) pdf.text(piePartes[1], ancho / 2, alto - 6.4, { align: 'center' });
+          if (piePartes[2]) pdf.text(piePartes[2], ancho - 12, alto - 6.4, { align: 'right' });
+        }
       }
     }).outputPdf('blob');
   }
