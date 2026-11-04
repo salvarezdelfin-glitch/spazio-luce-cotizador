@@ -420,3 +420,13 @@
   @media print { .accion-bar, .tam-letra, .ayuda-btn { display: none !important; } }
   /* Con zoom, las ventanas emergentes no deben pasarse de la pantalla */
   main > div[id$="Modal"] > .card { max-height: calc(88vh / var(--ui-zoom, 1)) !important; }
+
+  /* Cotización vs presupuesto */
+  .diferencia-box { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 18px; margin-bottom: 26px; }
+  .diferencia-titulo { font-size: 16px; font-weight: 700; margin-bottom: 12px; }
+  .diferencia-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .diferencia-cols > div { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+  .diferencia-cols p { margin: 6px 0 0; font-size: 13px; line-height: 1.55; color: var(--text-secondary); }
+  .diferencia-cols p b { color: var(--text); }
+  .diferencia-regla { margin-top: 12px; font-size: 13px; line-height: 1.55; color: var(--text-secondary); }
+  .diferencia-regla b { color: var(--accent); }

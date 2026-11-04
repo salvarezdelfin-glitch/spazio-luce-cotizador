@@ -118,6 +118,20 @@
         <button class="inicio-btn" onclick="showView('directorio')"><span class="ico">📒</span><b>Buscar un teléfono o dirección</b><small>Clientes, albañiles, proveedores</small></button>
         <button class="inicio-btn" onclick="document.getElementById('dashQuotesList').scrollIntoView({behavior:'smooth',block:'start'})"><span class="ico">📂</span><b>Ver cotizaciones anteriores</b><small>Para verlas, corregirlas o mandarlas otra vez</small></button>
       </div>
+      <div class="diferencia-box">
+        <div class="diferencia-titulo">¿Cotización o presupuesto? ¿Cuál uso?</div>
+        <div class="diferencia-cols">
+          <div>
+            <b>🧾 Cotización</b>
+            <p>Para <b>vender productos</b>: luces, candiles, persianas, cortinas, pisos y muros. Eliges el producto del catálogo y <b>el precio ya viene puesto</b>. La app calcula sola las cajas y los m².</p>
+          </div>
+          <div>
+            <b>📋 Presupuesto</b>
+            <p>Para <b>trabajos y obra</b>: instalación, remodelación, mano de obra. <b>Tú escribes</b> cada concepto con su precio (por secciones, como herrería o plomería), o subes un Excel, PDF o Word que ya tengas. No usa el catálogo.</p>
+          </div>
+        </div>
+        <div class="diferencia-regla">Para decidir: si lo que vendes está en el catálogo, haz una <b>cotización</b>. Si es un trabajo, o algo que no está en el catálogo, haz un <b>presupuesto</b>. Las dos salen en el mismo formato Spazio Luce y se mandan igual.</div>
+      </div>
       <div class="cards-grid" id="statsGrid"></div>
       <div class="panel hidden" id="dashSeguimiento" style="margin-bottom:18px;">
         <h3>Dar seguimiento <span id="dashSeguimientoCount"></span></h3>
@@ -178,6 +192,12 @@
     <div id="ayudaModal" class="hidden" style="position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:300; display:flex; align-items:center; justify-content:center; padding:20px;" onclick="if(event.target===this)cerrarAyuda()">
       <div class="card ayuda-card" style="max-width:640px; width:100%; max-height:90vh; overflow-y:auto;">
         <h1 style="font-size:20px;">¿Cómo se usa?</h1>
+        <div class="ayuda-bloque">
+          <h3>🤔 ¿Cotización o presupuesto?</h3>
+          <p><b>Cotización:</b> para <b>vender productos</b> del catálogo (luces, candiles, persianas, cortinas, pisos y muros). El precio ya viene puesto y la app calcula cajas y m².</p>
+          <p><b>Presupuesto:</b> para <b>trabajos y obra</b> (instalación, remodelación, mano de obra). Tú escribes cada concepto con su precio, o subes un Excel, PDF o Word. No usa el catálogo.</p>
+          <p>Si lo que vendes está en el catálogo, haz una cotización; si no, un presupuesto. Las dos salen en el mismo formato y se mandan igual.</p>
+        </div>
         <div class="ayuda-bloque">
           <h3>🧾 Hacer una cotización</h3>
           <ol>
@@ -322,7 +342,7 @@
 
     <div id="view-cotizador" class="hidden">
       <div class="topbar">
-        <div><h2>Cotizar con catálogo</h2><div class="sub">Tres pasos: el cliente, los productos y generar · el total y el botón para generar te siguen abajo</div></div>
+        <div><h2>Cotizar con catálogo</h2><div class="sub">Para vender productos del catálogo (el precio ya viene puesto) · tres pasos: el cliente, los productos y generar</div></div>
       </div>
       <div class="quote-form">
         <div class="paso"><span class="paso-n">1</span> ¿Para quién es la cotización?</div>
@@ -416,7 +436,7 @@
 
     <div id="view-presupuestos" class="hidden">
       <div class="topbar">
-        <div><h2>Presupuesto a mano</h2><div class="sub">Escribe tú los conceptos y precios, o sube un presupuesto ya armado (Excel, PDF o Word) y se pasa al formato Spazio Luce · no usa el catálogo</div></div>
+        <div><h2>Presupuesto a mano</h2><div class="sub">Para trabajos y obra: escribes tú los conceptos y precios, o subes uno ya armado (Excel, PDF o Word) · no usa el catálogo</div></div>
       </div>
 
       <div class="quote-form">
