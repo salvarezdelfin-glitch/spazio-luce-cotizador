@@ -96,7 +96,9 @@
     return window.html2pdf().set({
       margin: [8, 8, 8, 8],
       image: { type: 'jpeg', quality: 0.96 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: null },
+      // scrollX/scrollY en 0: si la ventana está desplazada (se genera la cotización desde abajo del
+      // formulario), html2canvas dibuja la hoja corrida: hojas en blanco, renglones y firmas cortados.
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: null, scrollX: 0, scrollY: 0 },
       jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
       pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.recibo-header', '.recibo-totals'] },
     }).from(el).outputPdf('blob');

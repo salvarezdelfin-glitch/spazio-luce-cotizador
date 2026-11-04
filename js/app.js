@@ -265,7 +265,7 @@ function showToast(msg) {
 
 // Versión que se ve abajo a la izquierda (para comprobar que la app ya se actualizó).
 // Se cambia en cada publicación.
-const APP_VERSION = '4 nov 2026 · PDF de proveedor y condiciones editables';
+const APP_VERSION = '4 nov 2026 · PDF corregido (sin hojas en blanco)';
 
 function showApp() {
   document.getElementById('loginScreen').classList.add('hidden');
@@ -1381,7 +1381,7 @@ function renderRecibopresupuesto(quote, fechaObj, fmt, contactoLine) {
       <tr>
         <td style="width:26px;color:#999;">${++numero}</td>
         <td>${escapeHtml(it.name)}</td>
-        <td style="width:50px;">${escapeHtml(it.unit || '—')}</td>
+        <td style="width:50px;">${escapeHtml(it.unit || '')}</td>
         <td style="width:50px;">${it.qty}</td>
         <td style="width:90px;">${fmtMoney(it.price)}</td>
         <td style="width:100px;"><strong>${fmtMoney(it.importe)}</strong></td>
