@@ -87,6 +87,6 @@ function condicionesHtml(quote) {
   return `
     <div class="condiciones-bloque">
       <div class="cond-titulo">CONDICIONES</div>
-      ${limpias.map(c => `<div class="cond-texto cond-item">• ${escapeHtml(c)}</div>`).join('')}
+      ${limpias.map((c, i) => `<div class="cond-texto cond-item"><span class="cond-n">${i + 1}.</span><span>${escapeHtml(c)}</span></div>`).join('')}
     </div>`;
 }

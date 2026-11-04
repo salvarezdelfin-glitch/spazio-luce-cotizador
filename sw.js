@@ -1,4 +1,4 @@
-const CACHE_NAME = 'spazio-luce-v9';
+const CACHE_NAME = 'spazio-luce-v10';
 const APP_SHELL = [
   './',
   './index.html',
@@ -11,6 +11,7 @@ const APP_SHELL = [
   './js/margen.js',
   './js/condiciones.js',
   './js/facil.js',
+  './js/guardar-en-carpeta.js',
   './manifest.json',
   './assets/logo.jpg',
   './icons/icon-192.png',
