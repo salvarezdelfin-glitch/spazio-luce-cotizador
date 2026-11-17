@@ -78,3 +78,9 @@ git add -A
 git commit -m "describe el cambio"
 git push
 ```
+
+## Seguir modificando desde otro ordenador
+Todo el código vive en este repositorio. En el otro equipo: instalar Git y Node.js, `git clone https://github.com/salvarezdelfin-glitch/spazio-luce-cotizador.git`,
+`git checkout dev`, y abrir la carpeta con Claude Code. La guía completa (estructura, cómo se publica, reglas del negocio y base de datos) está en
+`CLAUDE.md` y `docs/base-de-datos.md`. Para ver la app en local: `npx serve -l 8126`. Si en ese equipo la app se ve vieja, usar el botón
+**🔄 Actualizar la app** (abajo en el menú) o abrir la dirección de GitHub Pages con Ctrl+Shift+R.

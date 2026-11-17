@@ -106,3 +106,35 @@ function setTemaRecibo(t) {
   if (window.spazioPdf && window.spazioPdf.invalidar) window.spazioPdf.invalidar();   // el PDF ya preparado era del otro color
 }
 aplicarTemaRecibo();
+
+// ---------- Aviso de versión nueva / actualizar la app ----------
+// Si en este equipo quedó guardada una versión vieja (pasa al usar la app en otra computadora), se
+// avisa y un clic la actualiza. El aviso no recarga solo para no perder lo que se está capturando.
+async function revisarVersionNueva() {
+  try {
+    const r = await fetch('js/app.js?v=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) return;
+    const m = (await r.text()).match(/APP_VERSION = '([^']*)'/);
+    if (m && typeof APP_VERSION !== 'undefined' && m[1] !== APP_VERSION) mostrarAvisoVersion(m[1]);
+  } catch (e) { /* sin conexión: se revisa otra vez después */ }
+}
+function mostrarAvisoVersion(nueva) {
+  if (document.getElementById('avisoVersion')) return;
+  const a = document.createElement('div');
+  a.id = 'avisoVersion'; a.className = 'aviso-version';
+  a.innerHTML = '<span>🔄 Hay una versión nueva de la app' + (nueva ? ' (' + nueva.replace(/</g, '') + ')' : '') + '. Guarda lo que estés haciendo y actualiza.</span>' +
+    '<button class="btn-accent-sm" onclick="forzarActualizacion()">Actualizar ahora</button>' +
+    '<button class="link-btn" onclick="this.parentNode.remove()">Después</button>';
+  document.body.appendChild(a);
+}
+// Borra lo guardado por el navegador (caché y service worker) y vuelve a cargar la app desde internet.
+async function forzarActualizacion() {
+  try {
+    if (window.caches) { const claves = await caches.keys(); await Promise.all(claves.map(k => caches.delete(k))); }
+    if (navigator.serviceWorker) { const regs = await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r => r.unregister())); }
+  } catch (e) { /* aun así se recarga */ }
+  location.reload();
+}
+setTimeout(revisarVersionNueva, 4000);
+setInterval(revisarVersionNueva, 20 * 60 * 1000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) revisarVersionNueva(); });

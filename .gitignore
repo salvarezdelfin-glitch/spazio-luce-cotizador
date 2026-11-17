@@ -9,3 +9,5 @@ service-account*.json
 # Local
 .netlify/
 .claude/
+
+node_modules/

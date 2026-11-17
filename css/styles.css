@@ -485,3 +485,7 @@
   .tema-recibo { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); flex-wrap: wrap; }
   .tema-recibo button { background: var(--bg); border: 1px solid var(--border); color: var(--text); font-weight: 700; font-size: 13px; padding: 8px 14px; border-radius: 10px; }
   .tema-recibo button.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+
+  /* Aviso de versión nueva */
+  .aviso-version { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 400; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; background: var(--panel); border: 1px solid var(--accent); border-radius: 14px; padding: 12px 16px; max-width: calc(100vw - 24px); box-shadow: 0 10px 30px rgba(0,0,0,.5); font-size: 14px; }
+  .app-actualizar { display: block; margin-top: 8px; font-size: 11px; }
