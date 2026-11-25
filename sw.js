@@ -1,7 +1,8 @@
-const CACHE_NAME = 'spazio-luce-v10';
+const CACHE_NAME = 'spazio-luce-v12';
 const APP_SHELL = [
   './',
   './index.html',
+  './manual.html',
   './css/styles.css',
   './js/catalog.js',
   './js/importers.js',

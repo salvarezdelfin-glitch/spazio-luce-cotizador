@@ -489,3 +489,32 @@
   /* Aviso de versión nueva */
   .aviso-version { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 400; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; background: var(--panel); border: 1px solid var(--accent); border-radius: 14px; padding: 12px 16px; max-width: calc(100vw - 24px); box-shadow: 0 10px 30px rgba(0,0,0,.5); font-size: 14px; }
   .app-actualizar { display: block; margin-top: 8px; font-size: 11px; }
+
+  /* ===== Pantallas más simples para quien no usa mucho la computadora ===== */
+  .mas-datos, .mas-opciones, .recibo-mas { margin: 12px 0 18px; border: 1px dashed var(--border); border-radius: 12px; padding: 10px 14px; background: var(--bg); }
+  .mas-datos summary, .mas-opciones summary, .recibo-mas summary { cursor: pointer; font-weight: 700; font-size: 14px; }
+  .mas-datos summary small, .mas-opciones summary small, .recibo-mas summary small { font-weight: 500; color: var(--text-secondary); font-size: 12px; margin-left: 6px; }
+  .mas-datos[open] summary, .mas-opciones[open] summary, .recibo-mas[open] summary { margin-bottom: 12px; }
+  .mas-opciones-fila { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .buscar-etiqueta { display: block; font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+  .catalog-box .input-wrap input#catalogSearch { font-size: 16px; }
+  .lista-titulo { font-size: 16px; font-weight: 700; margin: 18px 0 8px; }
+  #productRows:empty::before, #presupuestoRows:empty::before { content: 'Aquí irán los productos que agregues. Busca arriba y pulsa "+ Agregar".'; display: block; text-align: center; padding: 22px 12px; border: 1px dashed var(--border); border-radius: 12px; color: var(--text-secondary); font-size: 14px; }
+  #presupuestoRows:empty::before { content: 'Aquí irán los renglones. Pulsa "+ Agregar renglón manual" o sube un archivo.'; }
+  .recibo-principal { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+  .recibo-grande { font-size: 16px !important; padding: 14px 22px !important; border-radius: 12px; }
+  .recibo-mas-botones { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0; }
+  .recibo-ayuda { font-size: 12px; color: var(--text-secondary); max-width: 640px; line-height: 1.55; margin: 8px 0 0; }
+  .ayuda-bloque.ayuda-destacada { background: var(--accent-soft); border-radius: 12px; padding: 10px 14px; outline: 2px solid var(--accent); }
+
+  /* Ventanas de pasos grandes (guardar y mandar el PDF) */
+  .guia-fondo { position: fixed; inset: 0; z-index: 500; background: rgba(0,0,0,.72); display: flex; align-items: center; justify-content: center; padding: 18px; }
+  .guia-card { background: var(--panel); border: 1px solid var(--accent); border-radius: 18px; max-width: 620px; width: 100%; max-height: 92vh; overflow-y: auto; padding: 26px 28px; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+  .guia-card h1 { font-size: 24px; margin: 0 0 8px; }
+  .guia-intro { font-size: 17px; line-height: 1.5; margin: 6px 0 12px; }
+  .guia-pasos { list-style: none; counter-reset: gp; padding: 0; margin: 10px 0 14px; }
+  .guia-pasos li { counter-increment: gp; position: relative; padding: 10px 0 10px 54px; font-size: 18px; line-height: 1.5; }
+  .guia-pasos li::before { content: counter(gp); position: absolute; left: 0; top: 8px; width: 38px; height: 38px; border-radius: 50%; background: var(--accent); color: #0B0B09; font-weight: 800; font-size: 20px; display: flex; align-items: center; justify-content: center; }
+  .guia-nota { background: var(--accent-soft); border-radius: 10px; padding: 10px 14px; font-size: 15px; margin-bottom: 14px; }
+  .guia-botones { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .guia-grande { font-size: 17px !important; padding: 14px 22px !important; border-radius: 12px; }

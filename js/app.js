@@ -265,7 +265,7 @@ function showToast(msg) {
 
 // Versión que se ve abajo a la izquierda (para comprobar que la app ya se actualizó).
 // Se cambia en cada publicación.
-const APP_VERSION = '17 nov 2026 · Aviso de versión nueva y guía para otro ordenador';
+const APP_VERSION = '25 nov 2026 · Guardar y mandar el PDF explicado paso a paso';
 
 function showApp() {
   document.getElementById('loginScreen').classList.add('hidden');
@@ -1140,6 +1140,7 @@ async function prepareNewQuote() {
   document.getElementById('quoteEmail').value = '';
   document.getElementById('quoteAddress').value = '';
   document.getElementById('quoteNote').value = '';
+  document.getElementById('quoteMasDatos').open = false;
   document.getElementById('quoteCondiciones').dataset.tocado = '';
   iniciarCondiciones('quoteCondiciones');
   document.getElementById('catalogSearch').value = '';
@@ -1513,6 +1514,40 @@ function descargarArchivo(file) {
 function esDispositivoTactil() {
   return !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
 }
+// Paso previo en computadora: explica en 3 pasos qué va a pasar y cómo adjuntar el PDF en WhatsApp.
+function iniciarEnvioWhatsApp(quote, boton) {
+  if (esDispositivoTactil() || guiaOculta() || !window.spazioPdf) { enviarCotizacionPorWhatsApp(quote, boton); return; }
+  const archivo = escapeHtml(window.spazioPdf.nombreArchivo());
+  const cliente = escapeHtml(quote.client || 'tu cliente');
+  mostrarGuia({
+    titulo: '📲 Mandar la cotización por WhatsApp',
+    intro: 'Vas a mandarle a <b>' + cliente + '</b> su cotización en PDF. Son 3 pasos:',
+    pasos: [
+      'Pulsa el botón amarillo de abajo. Se <b>baja el PDF</b> a tu carpeta <b>Descargas</b>.',
+      'Se abre <b>WhatsApp</b> con el chat de tu cliente y el mensaje ya escrito.',
+      'En WhatsApp pulsa el clip <b>📎</b> → <b>Documento</b> → elige el archivo <b>«' + archivo + '»</b> (es el más nuevo de Descargas) → pulsa <b>Enviar</b>.',
+    ],
+    nota: 'Si WhatsApp no tiene el teléfono del cliente, te deja elegir a quién mandárselo.',
+    botones: [
+      { texto: '📲 Abrir WhatsApp y bajar el PDF', alHacerClic: async () => {
+        cerrarGuia();
+        await enviarCotizacionPorWhatsApp(quote, boton);
+        mostrarGuia({
+          titulo: '👉 Ahora, en WhatsApp',
+          pasos: ['Pulsa el clip <b>📎</b> → <b>Documento</b>.', 'Elige el archivo <b>«' + archivo + '»</b> (está en <b>Descargas</b>, es el más nuevo).', 'Pulsa <b>Enviar</b>. ¡Listo!'],
+          nota: 'Regresa a esta pestaña cuando termines. Si no se abrió WhatsApp o no se bajó el PDF, pulsa «Intentar otra vez».',
+          botones: [
+            { texto: '✔ Ya la mandé', alHacerClic: cerrarGuia },
+            { texto: 'Intentar otra vez', clase: 'btn-ghost-sm guia-grande', alHacerClic: () => { cerrarGuia(); enviarCotizacionPorWhatsApp(quote, boton); } },
+            { texto: 'No mostrar más esta explicación', clase: 'link-btn', alHacerClic: ocultarGuiaParaSiempre },
+          ],
+        });
+      } },
+      { texto: 'Cancelar', clase: 'link-btn', alHacerClic: cerrarGuia },
+    ],
+  });
+}
+
 async function enviarCotizacionPorWhatsApp(quote, boton) {
   const msg = mensajeCotizacion(quote, true);
   const chat = `https://wa.me/${waPhone(quote.phone)}?text=${encodeURIComponent(msg)}`;
@@ -1561,7 +1596,7 @@ async function editarDesdeRecibo(quote) {
   const lista = window.__cotizaciones || [];
   const guardada = lista.find(c => quote.id != null && c.id === quote.id)
     || lista.find(c => c.folio === quote.folio && c.client === quote.client);
-  if (!guardada) { showToast('Esta cotización no aparece guardada. Vuelve al Dashboard y ábrela desde la lista.'); return; }
+  if (!guardada) { showToast('Esta cotización no aparece guardada. Vuelve al Inicio y ábrela desde la lista.'); return; }
   await editQuote(guardada.id);
 }
 
@@ -1573,7 +1608,7 @@ function wireReciboButtons(quote) {
   const phoneDigits = waPhone(quote.phone);
   document.getElementById('reciboEditBtn').onclick = () => editarDesdeRecibo(quote);
   const botonWa = document.getElementById('reciboWhatsBtn');
-  botonWa.onclick = () => enviarCotizacionPorWhatsApp(quote, botonWa);
+  botonWa.onclick = () => iniciarEnvioWhatsApp(quote, botonWa);
   document.getElementById('reciboWhatsMsgBtn').onclick = () => {
     window.open(`https://wa.me/${phoneDigits}?text=${waMsg}`, '_blank');
   };
@@ -1620,6 +1655,7 @@ function preparePresupuestos() {
   document.getElementById('presuCondiciones').dataset.tocado = '';
   iniciarCondiciones('presuCondiciones');
   document.getElementById('presuIvaToggle').checked = false;
+  document.getElementById('presuMasDatos').open = false;
   if (typeof resetMargenPresupuesto === 'function') resetMargenPresupuesto();
   recalcPresuTotals();
 }
@@ -1686,7 +1722,12 @@ function handlePresuFileImport(event) {
 
 function presuSetMetaIfEmpty(id, value) {
   const el = document.getElementById(id);
-  if (el && !el.value && value) el.value = value;
+  if (el && !el.value && value) {
+    el.value = value;
+    // Los datos que no están a la vista (folio, nota) se despliegan si el archivo los trajo.
+    const mas = document.getElementById('presuMasDatos');
+    if (mas && ['presuFolio', 'presuNote'].includes(id)) mas.open = true;
+  }
 }
 
 // Si el Excel trae una hoja de condiciones distinta a la de siempre, se ponen en el cuadro de condiciones.
@@ -1952,6 +1993,7 @@ async function editQuote(id) {
     document.getElementById('presuContact').value = q.phone || q.email || '';
     document.getElementById('presuNote').value = q.note || '';
     document.getElementById('presuIvaToggle').checked = !!q.iva_incluido;
+    document.getElementById('presuMasDatos').open = !!(q.folio || q.note || q.iva_incluido);
     cargarCondicionesDeCotizacion('presuCondiciones', q.condiciones);
     const fechaEl = document.getElementById('presuFecha');
     fechaEl.value = q.fecha ? String(q.fecha).slice(0, 10) : todayForDateInput();
@@ -1974,6 +2016,7 @@ async function editQuote(id) {
     document.getElementById('quoteAddress').value = q.address || '';
     document.getElementById('quoteNote').value = q.note || '';
     document.getElementById('quoteFolio').value = q.folio || '';
+    document.getElementById('quoteMasDatos').open = !!(q.email || q.address || q.note);
     cargarCondicionesDeCotizacion('quoteCondiciones', q.condiciones);
     // Se respeta el IVA que tenía la cotización (antes, al guardar, siempre se grababa
     // "IVA incluido" aunque los precios fueran sin IVA).

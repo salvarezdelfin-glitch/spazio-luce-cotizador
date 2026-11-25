@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Manual · Sistema de Gestión Spazio Luce</title>
+<style>
+  :root { --oro: #B8912E; --oro-claro: #F7F1E3; --negro: #111; --gris: #555; --linea: #E4DCC6; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #f4f1e8; color: var(--negro); font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 19px; line-height: 1.55; }
+  .hoja { max-width: 860px; margin: 0 auto; background: #fff; padding: 36px 44px 60px; }
+  .barra { max-width: 860px; margin: 0 auto; padding: 14px 44px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+  .barra a, .barra button { font: inherit; font-size: 16px; font-weight: 700; background: #F0D94D; color: #111; border: none; border-radius: 10px; padding: 10px 18px; cursor: pointer; text-decoration: none; }
+  .portada { text-align: center; padding: 30px 0 22px; border-bottom: 4px solid var(--oro); margin-bottom: 26px; }
+  .portada .marca { display: inline-block; background: #000; color: #F0D94D; font-weight: 800; letter-spacing: .12em; border-radius: 8px; padding: 10px 22px; font-size: 18px; }
+  .portada h1 { font-size: 36px; margin: 18px 0 6px; }
+  .portada p { margin: 0; color: var(--gris); font-size: 20px; }
+  h2 { font-size: 28px; margin: 38px 0 10px; padding-bottom: 6px; border-bottom: 3px solid var(--oro); break-after: avoid; }
+  h3 { font-size: 22px; margin: 22px 0 6px; break-after: avoid; }
+  p { margin: 8px 0; }
+  .caja { background: var(--oro-claro); border-left: 6px solid var(--oro); border-radius: 6px; padding: 12px 18px; margin: 14px 0; break-inside: avoid; }
+  .caja.aviso { background: #FFF4E5; border-left-color: #E08A00; }
+  .caja b.t { display: block; margin-bottom: 2px; }
+  .pasos { list-style: none; counter-reset: paso; padding: 0; margin: 12px 0; }
+  .pasos > li { counter-increment: paso; position: relative; padding: 10px 0 10px 58px; break-inside: avoid; }
+  .pasos > li::before { content: counter(paso); position: absolute; left: 0; top: 8px; width: 42px; height: 42px; border-radius: 50%; background: #F0D94D; color: #111; font-weight: 800; font-size: 22px; display: flex; align-items: center; justify-content: center; }
+  .boton { display: inline-block; background: #F0D94D; color: #111; font-weight: 700; border-radius: 8px; padding: 1px 10px; white-space: nowrap; }
+  .boton.gris { background: #E9E4D2; }
+  figure { margin: 12px 0 18px; break-inside: avoid; }
+  figure img { width: 100%; border: 2px solid #ccc; border-radius: 8px; display: block; }
+  figcaption { font-size: 16px; color: var(--gris); margin-top: 6px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 18px; break-inside: avoid; }
+  th { background: #111; color: #F0D94D; text-align: left; padding: 8px 12px; }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--linea); vertical-align: top; }
+  td:first-child { font-weight: 700; width: 34%; }
+  .resumen { background: #111; color: #fff; border-radius: 12px; padding: 18px 24px; margin: 18px 0; break-inside: avoid; }
+  .resumen h3 { color: #F0D94D; margin-top: 0; }
+  .resumen ol { margin: 6px 0 0; padding-left: 26px; }
+  .resumen li { margin: 5px 0; }
+  .pie { margin-top: 40px; padding-top: 14px; border-top: 2px solid var(--linea); color: var(--gris); font-size: 16px; text-align: center; }
+  @page { size: letter; margin: 14mm; }
+  @media print {
+    body { background: #fff; font-size: 16px; }
+    .barra { display: none; }
+    .hoja { max-width: none; padding: 0; }
+    h2 { margin-top: 26px; }
+  }
+  @media (max-width: 640px) { .hoja { padding: 22px 18px 40px; } .barra { padding: 12px 18px; } body { font-size: 18px; } h2 { font-size: 24px; } .portada h1 { font-size: 28px; } }
+</style>
+</head>
+<body>
+<div class="barra">
+  <a href="./">← Volver a la app</a>
+  <button onclick="window.print()">🖨️ Imprimir o guardar como PDF</button>
+</div>
+
+<div class="hoja">
+  <div class="portada">
+    <span class="marca">SPAZIO LUCE</span>
+    <h1>Cómo hacer una cotización</h1>
+    <p>Manual sencillo, paso a paso</p>
+  </div>
+
+  <div class="resumen">
+    <h3>La receta corta (lo que haces casi siempre)</h3>
+    <ol>
+      <li>Entra a la app y pulsa el botón amarillo grande <b>Hacer una cotización</b>.</li>
+      <li>Escribe el <b>nombre</b> y el <b>teléfono</b> del cliente.</li>
+      <li>En <b>¿Qué producto buscas?</b> escribe una palabra (por ejemplo "persiana") y pulsa <b>+ Agregar</b>.</li>
+      <li>En <b>Tu lista de productos</b> escribe la <b>cantidad</b> o las <b>medidas</b>.</li>
+      <li>Pulsa <b>Generar Cotización</b>, luego <b>💾 Guardar PDF</b> y <b>📲 Mandar por WhatsApp</b>.</li>
+    </ol>
+  </div>
+
+  <h2>1. Para entrar a la app</h2>
+  <ol class="pasos">
+    <li>Abre <b>Google Chrome</b> o <b>Microsoft Edge</b> en la computadora.</li>
+    <li>Escribe esta dirección y pulsa Enter: <b>salvarezdelfin-glitch.github.io/spazio-luce-cotizador</b>. Guárdala en favoritos (estrellita arriba a la derecha) para no tener que escribirla otra vez.</li>
+    <li>Escribe tu <b>correo</b> y tu <b>contraseña</b> y pulsa <span class="boton">Entrar</span>.</li>
+  </ol>
+  <div class="caja">
+    <b class="t">Si las letras se ven muy chicas</b>
+    Abajo en el menú de la izquierda, junto a la palabra "Letra", hay tres letras <b>A</b> (chica, mediana y grande). Pulsa la que se te lea mejor. Se queda guardada.
+  </div>
+  <div class="caja">
+    <b class="t">Si la app se ve diferente o le falta algo</b>
+    Abajo en el menú pulsa <span class="boton gris">🔄 Actualizar la app</span>. Descarga la versión más nueva.
+  </div>
+
+  <h2>2. La pantalla de Inicio</h2>
+  <p>Al entrar ves cuatro botones grandes. El amarillo es el que más vas a usar.</p>
+  <figure>
+    <img src="assets/manual/1-inicio.jpg" alt="Pantalla de Inicio con los cuatro botones grandes" />
+    <figcaption>Pantalla de Inicio. A la izquierda está el menú: ahí puedes cambiar de pantalla cuando quieras.</figcaption>
+  </figure>
+  <table>
+    <tr><th>Botón</th><th>Para qué sirve</th></tr>
+    <tr><td>Hacer una cotización</td><td>Cuando vas a <b>vender productos</b> del catálogo (luces, persianas, cortinas, pisos…). El precio ya viene puesto.</td></tr>
+    <tr><td>Hacer un presupuesto</td><td>Cuando es un <b>trabajo u obra</b> (instalación, remodelación, mano de obra). Tú escribes los conceptos y precios.</td></tr>
+    <tr><td>Buscar un teléfono o dirección</td><td>Abre el <b>Directorio</b>: clientes, albañiles, electricistas, proveedores.</td></tr>
+    <tr><td>Ver cotizaciones anteriores</td><td>Para verlas, corregirlas o mandarlas otra vez.</td></tr>
+  </table>
+  <div class="caja">
+    <b class="t">¿Cotización o presupuesto? Una regla fácil</b>
+    Si lo que vendes <b>está en el catálogo</b>, haz una <b>cotización</b>. Si es un trabajo, o algo que <b>no está en el catálogo</b>, haz un <b>presupuesto</b>. Las dos salen en el mismo formato de Spazio Luce y se mandan igual.
+  </div>
+
+  <h2>3. Hacer una cotización, paso por paso</h2>
+
+  <h3>Paso 1 · ¿Para quién es?</h3>
+  <ol class="pasos">
+    <li>Pulsa <span class="boton">Hacer una cotización</span> en el Inicio (o <b>Cotizar con catálogo</b> en el menú).</li>
+    <li>Escribe el <b>nombre del cliente</b> y su <b>teléfono</b> (10 dígitos, para poder mandarle la cotización por WhatsApp).</li>
+    <li>Lo demás (correo, dirección, nota) es opcional: está en <b>＋ Más datos del cliente</b>. Si no lo necesitas, sáltalo.</li>
+  </ol>
+  <figure>
+    <img src="assets/manual/2-cliente.jpg" alt="Paso 1: nombre y teléfono del cliente, y el buscador de productos" />
+    <figcaption>Arriba el nombre y teléfono. Abajo, el buscador de productos.</figcaption>
+  </figure>
+
+  <h3>Paso 2 · Buscar y agregar los productos</h3>
+  <ol class="pasos">
+    <li>En <b>¿Qué producto buscas?</b> escribe una palabra: <i>persiana, panel, tapiz, candil, cortina…</i></li>
+    <li>Salen los productos que coinciden, con su precio. Pulsa <span class="boton">+ Agregar</span> junto al que quieres.</li>
+    <li>Repite con cada producto. Puedes buscar otra palabra las veces que necesites.</li>
+    <li>Si el producto <b>no está en el catálogo</b>, pulsa <span class="boton gris">+ Agregar un producto que no está en el catálogo</span> y escribe su nombre y precio.</li>
+  </ol>
+  <figure>
+    <img src="assets/manual/3-buscar.jpg" alt="Resultados de buscar persiana, con el botón + Agregar en cada uno" />
+    <figcaption>Buscando "persiana screen": cada resultado trae su botón <b>+ Agregar</b>.</figcaption>
+  </figure>
+
+  <h3>Paso 3 · Poner cantidades o medidas</h3>
+  <p>Lo que agregaste aparece en <b>Tu lista de productos</b>. Cada renglón pide algo distinto según el producto:</p>
+  <table>
+    <tr><th>Tipo de producto</th><th>Qué escribes</th></tr>
+    <tr><td>Por pieza (focos, paneles, candiles)</td><td>La <b>cantidad</b> en la casilla <b>Cant.</b></td></tr>
+    <tr><td>Por caja (pisos, muros, deck)</td><td>El <b>largo y ancho</b> en metros, o los <b>m² totales</b>. La app calcula sola cuántas cajas hacen falta.</td></tr>
+    <tr><td>Persianas y cortinas por medida</td><td>El <b>ancho y alto</b> en metros (o los m² totales). Si lleva instalación, pulsa el botón <b>+ Agregar instalación</b>.</td></tr>
+  </table>
+  <p>El <b>Importe</b> de cada renglón y el <b>Total</b> se calculan solos. Abajo de la pantalla siempre ves cuántos productos llevas y el total.</p>
+  <figure>
+    <img src="assets/manual/4-lista.jpg" alt="Lista de productos con medidas y la barra de abajo con el total y el botón Generar Cotización" />
+    <figcaption>La barra de abajo te sigue siempre: <b>cuántos productos llevas</b>, el <b>Total</b> y el botón amarillo <b>Generar Cotización</b>.</figcaption>
+  </figure>
+  <div class="caja aviso">
+    <b class="t">Si te equivocas</b>
+    En cada renglón hay un botón rojo con una <b>✕</b>: quita ese producto. Puedes cambiar la cantidad cuando quieras antes de generar.
+  </div>
+
+  <h3>Paso 4 · Generar</h3>
+  <ol class="pasos">
+    <li>Revisa que el total se vea bien.</li>
+    <li>(Opcional) Abre <b>📝 Condiciones</b> si quieres cambiar o agregar condiciones para esta cotización. Si no, salen las de siempre.</li>
+    <li>Pulsa el botón amarillo <span class="boton">📄 Generar Cotización</span>. Si falta algo (por ejemplo el nombre) la app te lleva al lugar y te dice qué falta.</li>
+  </ol>
+
+  <h2>4. Guardar el PDF y mandárselo al cliente</h2>
+  <p>Cuando pulsas <b>Generar Cotización</b> aparece la pantalla <b>✅ Cotización lista</b>. La cotización ya quedó guardada en el sistema. Ahora falta <b>guardar el PDF</b> y <b>mandárselo al cliente</b>. Son dos botones, uno por uno:</p>
+  <figure>
+    <img src="assets/manual/5-lista-lista.jpg" alt="Pantalla Cotización lista con los botones Mandar por WhatsApp, Guardar PDF y Corregir cotización" />
+    <figcaption>Pantalla "Cotización lista": los tres botones grandes de arriba.</figcaption>
+  </figure>
+
+  <h3>A) Guardar el PDF — botón <span class="boton">💾 Guardar PDF</span></h3>
+  <ol class="pasos">
+    <li>Pulsa <b>💾 Guardar PDF</b>.</li>
+    <li>La <b>primera vez</b> te pregunta dónde guardar. Elige <b>📁 Elegir una carpeta</b> y escoge una (por ejemplo <b>Documentos › Spazio Luce</b>). Eso se hace una sola vez.</li>
+    <li>Desde ahí, cada cotización se guarda <b>sola</b> en una carpeta con el nombre del cliente. Para encontrarla: abre <b>Documentos › Spazio Luce › nombre del cliente</b>.</li>
+  </ol>
+  <figure>
+    <img src="assets/manual/8-guia-guardar.jpg" alt="Ventana que pregunta dónde guardar las cotizaciones" />
+    <figcaption>La primera vez sale esta ventana. Si no quieres elegir carpeta, pulsa <b>Solo bajar el archivo</b>: el PDF se guarda en <b>Descargas</b>.</figcaption>
+  </figure>
+  <div class="caja">
+    <b class="t">¿Dónde quedó un PDF que bajé?</b>
+    En Chrome pulsa las teclas <b>Ctrl + J</b>. Sale la lista de lo que has descargado, con el más nuevo arriba. Pulsa <b>Mostrar en carpeta</b> junto al archivo y se abre la carpeta donde está.
+  </div>
+
+  <h3>B) Mandar el PDF al cliente — botón <span class="boton">📲 Mandar por WhatsApp</span></h3>
+  <ol class="pasos">
+    <li>Pulsa <b>📲 Mandar por WhatsApp</b>. Sale una ventana que explica los 3 pasos. Pulsa el botón amarillo <b>Abrir WhatsApp y bajar el PDF</b>.</li>
+    <li>Se <b>baja el PDF</b> a Descargas y se <b>abre WhatsApp</b> con el chat del cliente y el mensaje ya escrito.</li>
+    <li>En WhatsApp pulsa el <b>clip 📎</b>, luego <b>Documento</b>, y elige el archivo <b>«Cotizacion … .pdf»</b> (es el más nuevo de la carpeta Descargas).</li>
+    <li>Pulsa <b>Enviar</b>. ¡Listo! Regresa a la app y pulsa <b>Ya la mandé</b>.</li>
+  </ol>
+  <figure>
+    <img src="assets/manual/9-guia-whatsapp.jpg" alt="Ventana con los pasos para adjuntar el PDF en WhatsApp" />
+    <figcaption>Esta ventana se queda abierta para que no se te olvide qué sigue en WhatsApp.</figcaption>
+  </figure>
+  <div class="caja aviso">
+    <b class="t">Si usas celular o iPad</b>
+    Es más fácil: al pulsar <b>Mandar por WhatsApp</b> se abre la hoja de compartir con el PDF ya adjunto. Solo eliges <b>WhatsApp</b> y el chat del cliente.
+  </div>
+  <div class="caja aviso">
+    <b class="t">Si algo sale mal</b>
+    Si no se abrió WhatsApp o no se bajó el PDF, pulsa <b>Intentar otra vez</b> en la ventana. Si aun así no se baja, pulsa <b>💾 Guardar PDF</b> y luego adjunta ese archivo en WhatsApp con el clip 📎.
+  </div>
+
+  <h3>C) Corregir algo — botón <span class="boton">✏️ Corregir cotización</span></h3>
+  <p>Si te equivocaste, te regresa a la cotización con todo lleno. Cambia lo que quieras y pulsa <b>Guardar cambios</b>; luego vuelve a guardar y mandar el PDF.</p>
+  <p>En <b>Más opciones</b> hay otras cosas: ver o imprimir el PDF, mandar solo el mensaje, abrir el correo y elegir la hoja <b>Blanca</b> o <b>Negra</b>.</p>
+  <div class="caja">
+    <b class="t">¿Dónde encuentro una cotización que ya hice?</b>
+    En el <b>Inicio</b>, baja a <b>Cotizaciones (todas)</b>. Ahí puedes pulsar <b>Ver</b> para abrirla, <b>Editar</b> para corregirla, o cambiar su estatus (Enviada, Aprobada…).
+  </div>
+
+  <h2>5. Hacer un presupuesto a mano</h2>
+  <p>Úsalo para trabajos y obra, o cuando ya tienes la lista de conceptos y precios.</p>
+  <ol class="pasos">
+    <li>Pulsa <span class="boton">Hacer un presupuesto</span> (o <b>Presupuesto a mano</b> en el menú).</li>
+    <li>Escribe el <b>cliente</b>, el <b>proyecto</b> y su <b>teléfono</b>.</li>
+    <li>Pulsa <span class="boton gris">+ Agregar renglón manual</span> y llena <b>Sección</b> (opcional, por ejemplo "Baño"), <b>Concepto</b> (el nombre del trabajo), <b>Un</b> (m², pza…), <b>Cant</b> y <b>P. Unitario</b>.</li>
+    <li>Pulsa <span class="boton">Generar Presupuesto Spazio Luce</span>.</li>
+  </ol>
+  <figure>
+    <img src="assets/manual/6-presupuesto.jpg" alt="Pantalla de Presupuesto a mano" />
+    <figcaption>Presupuesto a mano. Arriba el botón para subir un archivo.</figcaption>
+  </figure>
+  <div class="caja">
+    <b class="t">¿Ya tienes el presupuesto en un archivo?</b>
+    Pulsa <span class="boton">Subir presupuesto</span> y elige un <b>Excel, PDF, Word o una foto (PNG o JPG)</b>. La app lee los renglones y los pone en la lista. <b>Siempre revisa</b> nombre, cantidad y precio antes de generar: la lectura de PDF, Word y fotos puede equivocarse. También puedes bajar el <b>formato de Excel</b>, llenarlo y subirlo: es la forma más segura.
+  </div>
+  <div class="caja">
+    <b class="t">Si los precios son los que te dio un proveedor</b>
+    Abre <b>⚙️ Si los precios son los del proveedor</b> y pulsa <b>Aplicar a los precios</b>. Si te equivocas, pulsa <b>Deshacer</b>.
+  </div>
+
+  <h2>6. Las condiciones del final</h2>
+  <p>Al final de cada cotización salen las <b>condiciones</b> (anticipo, vigencia, garantía…). Ya vienen escritas: son las de siempre de Spazio Luce.</p>
+  <ul>
+    <li>Para <b>cambiarlas solo en esta cotización</b>: abre <b>📝 Condiciones que saldrán al final</b> y escribe o borra renglones (una condición por renglón).</li>
+    <li>Para <b>cambiarlas para todas las cotizaciones nuevas</b>: déjalas como quieras y pulsa <b>Guardar como las de siempre</b>.</li>
+    <li>Para volver a las de siempre: pulsa <b>Poner las de siempre</b>.</li>
+  </ul>
+
+  <h2>7. El Directorio (teléfonos y direcciones)</h2>
+  <p>Ahí está todo lo que necesitas para encontrar a alguien: <b>clientes, trabajadores</b> (albañiles, electricistas…), <b>proveedores</b>, aliados y servicios.</p>
+  <ul>
+    <li>Escribe en el buscador un nombre, una colonia o un oficio ("albañil").</li>
+    <li>Pulsa <b>WhatsApp</b> junto al teléfono para abrir el chat.</li>
+    <li>Para agregar a alguien: <b>+ Cliente</b>, <b>+ Trabajador</b>, <b>+ Proveedor</b> o <b>+ Aliado / otro</b>.</li>
+    <li>La pestaña <b>Comparar precios</b> te muestra quién cobra menos por el mismo trabajo, y <b>Prospectos</b> es para la gente nueva que quieres contratar.</li>
+  </ul>
+  <figure>
+    <img src="assets/manual/7-directorio.jpg" alt="Directorio con trabajadores y proveedores" />
+    <figcaption>Directorio: filtros arriba por tipo de persona y el buscador.</figcaption>
+  </figure>
+
+  <h2>8. Si algo no sale como esperabas</h2>
+  <table>
+    <tr><th>Lo que pasa</th><th>Qué hacer</th></tr>
+    <tr><td>La app se ve vieja o le faltan botones</td><td>Pulsa <b>🔄 Actualizar la app</b> (abajo en el menú) o, en el teclado, <b>Ctrl + Shift + R</b>.</td></tr>
+    <tr><td>Dice "Escribe el nombre del cliente"</td><td>Es el único dato obligatorio. La app te lleva al lugar: escribe el nombre y vuelve a pulsar Generar.</td></tr>
+    <tr><td>Dice "Agrega al menos un producto"</td><td>Aún no hay nada en <b>Tu lista de productos</b>. Busca un producto y pulsa <b>+ Agregar</b>.</td></tr>
+    <tr><td>No sé qué escribir en un renglón</td><td>Pulsa <b>❓ ¿Cómo hago esto?</b> arriba de la pantalla: te explica lo que estás haciendo.</td></tr>
+    <tr><td>Me equivoqué en una cotización que ya generé</td><td>Pulsa <b>✏️ Corregir cotización</b> (o <b>Editar</b> en la lista del Inicio).</td></tr>
+    <tr><td>No sé dónde quedó el PDF</td><td>Pulsa <b>Ctrl + J</b> en Chrome: sale la lista de descargas con el más nuevo arriba. O pulsa <b>💾 Guardar PDF</b> y elige una carpeta.</td></tr>
+    <tr><td>No se abre WhatsApp</td><td>Pulsa <b>Intentar otra vez</b> en la ventana de pasos. Si sigue igual, guarda el PDF y adjúntalo a mano con el clip 📎.</td></tr>
+    <tr><td>Perdí una cotización</td><td>No se pierde: en el <b>Inicio</b> baja a <b>Cotizaciones (todas)</b> y búscala por el nombre del cliente.</td></tr>
+  </table>
+
+  <h2>9. Palabras que salen en la app</h2>
+  <table>
+    <tr><th>Palabra</th><th>Qué significa</th></tr>
+    <tr><td>Cotización</td><td>Documento con productos del catálogo y su precio, para el cliente.</td></tr>
+    <tr><td>Presupuesto</td><td>Documento de un trabajo u obra, con conceptos y precios escritos por nosotros.</td></tr>
+    <tr><td>Folio</td><td>El número de la cotización (SL-0210). Se pone solo.</td></tr>
+    <tr><td>Catálogo</td><td>La lista de todos los productos con su precio.</td></tr>
+    <tr><td>IVA incluido</td><td>El precio del catálogo ya trae el IVA. Así se cobra siempre, no hay que sumarlo.</td></tr>
+    <tr><td>Precio LAB</td><td>El precio de costo del proveedor. <b>No se usa para el cliente.</b></td></tr>
+    <tr><td>Directorio</td><td>Teléfonos y direcciones de clientes, trabajadores y proveedores.</td></tr>
+    <tr><td>Prospecto</td><td>Una persona nueva a la que queremos contratar.</td></tr>
+  </table>
+
+  <div class="pie">Spazio Luce · Sistema de Gestión · Si algo no se entiende, pulsa <b>❓ ¿Cómo se usa?</b> en la app o pregúntale a Sebastián.</div>
+</div>
+</body>
+</html>

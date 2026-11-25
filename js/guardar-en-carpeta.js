@@ -347,6 +347,8 @@
       const q = ultimaCotizacion;
       if (q) setTimeout(() => { if (q === ultimaCotizacion) pdfDe(q).promesa.catch(err => console.warn('PDF previo:', err)); }, 300);
     },
+    // Nombre con el que se guarda el PDF de la cotizacion en pantalla.
+    nombreArchivo() { return ultimaCotizacion ? nombres(ultimaCotizacion).archivo : ''; },
     // File ya generado de la cotizacion en pantalla, o null si aun se prepara.
     listo() {
       if (!ultimaCotizacion || !pdfCache || pdfCache.quote !== ultimaCotizacion || !pdfCache.listo) return null;
@@ -390,6 +392,52 @@
     const msg = `Guardada en ${raiz.name}\\${subcarpeta}\\${archivo}`;
     pintarEstado(msg);
     if (typeof window.showToast === 'function') window.showToast('PDF guardado en la carpeta de ' + subcarpeta);
+    return { carpeta: raiz.name, subcarpeta, archivo };
+  }
+
+  // ---- "Guardar PDF" explicado paso a paso ----
+  function bajarPdf() {
+    return window.spazioPdf.obtener().then(f => { window.descargarArchivo(f); return f.name; });
+  }
+  function guiaGuardado(lugar) {
+    const aviso = lugar.carpeta
+      ? ['El PDF ya quedó guardado en la carpeta: <b>' + lugar.carpeta + ' › ' + lugar.subcarpeta + '</b>', 'El archivo se llama <b>' + lugar.archivo + '</b>.', 'Para encontrarlo después: abre esa carpeta en tu computadora (por ejemplo <b>Documentos</b>). Cada cliente tiene su propia carpeta.']
+      : ['El archivo se llama <b>' + lugar.archivo + '</b> y se guardó en la carpeta <b>Descargas</b> de tu computadora.', 'Para verlo rápido: en Chrome pulsa las teclas <b>Ctrl + J</b>. Sale la lista de lo que has descargado; pulsa <b>Mostrar en carpeta</b> junto al archivo.', 'Ya puedes mandarlo: pulsa el botón <b>Mandar por WhatsApp</b>.'];
+    window.mostrarGuia({ titulo: '✅ Listo, el PDF quedó guardado', pasos: aviso, botones: [{ texto: 'Entendido' }] });
+  }
+  async function guardarGuiado() {
+    if (!ultimaCotizacion) return;
+    const { archivo } = nombres(ultimaCotizacion);
+    try {
+      if (SOPORTADO) {
+        const raiz = await leerCarpeta();
+        if (raiz) {
+          const r = await guardar(true);
+          if (r) guiaGuardado(r);
+          return;
+        }
+        // Primera vez: se explica y se elige
+        window.mostrarGuia({
+          titulo: '💾 ¿Dónde guardo tus cotizaciones?',
+          intro: 'Esto se elige <b>una sola vez</b>. Después, al pulsar «Guardar PDF», se guarda solo.',
+          pasos: [
+            '<b>Elegir una carpeta</b> (lo recomendado): por ejemplo <b>Documentos › Spazio Luce</b>. Ahí se crea una carpeta por cliente y siempre sabes dónde están.',
+            '<b>Solo bajar el archivo</b>: se guarda en <b>Descargas</b>, sin elegir nada. Sirve para mandarlo ya.',
+          ],
+          botones: [
+            { texto: '📁 Elegir una carpeta', alHacerClic: async () => { window.cerrarGuia(); try { const r = await guardar(true); if (r) guiaGuardado(r); } catch (err) { if (!err || err.name !== 'AbortError') pintarEstado('No se pudo guardar: ' + (err && err.message || err)); } } },
+            { texto: '⬇️ Solo bajar el archivo', alHacerClic: async () => { window.cerrarGuia(); await bajarPdf(); guiaGuardado({ archivo }); } },
+          ],
+        });
+        return;
+      }
+      await bajarPdf();
+      guiaGuardado({ archivo });
+    } catch (err) {
+      console.error(err);
+      if (err && err.name === 'AbortError') return;
+      if (typeof window.showToast === 'function') window.showToast('No se pudo guardar el PDF: ' + (err && err.message || err));
+    }
   }
 
   // ---------- UI ----------
@@ -398,20 +446,27 @@
     if (!estadoEl) return;
     if (msg) { estadoEl.textContent = msg; return; }
     const raiz = await leerCarpeta();
-    if (!raiz) { estadoEl.textContent = `Aun no hay carpeta conectada. Con el primer clic eliges ${CARPETA_SUGERIDA}.`; return; }
+    if (!raiz) { estadoEl.textContent = 'Todavía no has elegido dónde guardar. Pulsa «Guardar PDF» y te explico.'; return; }
     const ok = await permiso(raiz, false);
-    estadoEl.textContent = ok ? `Carpeta conectada: ${raiz.name}` : `Carpeta: ${raiz.name} (da clic en "Guardar en carpeta" para darle permiso)`;
+    estadoEl.textContent = ok ? `Los PDF se guardan en la carpeta: ${raiz.name} (una carpeta por cliente)` : `Carpeta: ${raiz.name} (pulsa «Guardar PDF» para darle permiso)`;
   }
 
   function montarUi() {
     const acciones = document.querySelector('#view-recibo .recibo-actions');
-    if (!acciones || !SOPORTADO || document.getElementById('btnGuardarCarpeta')) return;
+    if (!acciones || document.getElementById('btnGuardarCarpeta')) return;
     btnGuardar = document.createElement('button');
     btnGuardar.id = 'btnGuardarCarpeta';
     btnGuardar.className = 'btn-accent-sm';
-    btnGuardar.style.marginRight = '10px';
-    btnGuardar.textContent = 'Guardar en carpeta';
-    btnGuardar.onclick = () => guardar(true).catch(err => { console.error(err); if (err && err.name === 'AbortError') { pintarEstado(); return; } pintarEstado('No se pudo guardar: ' + (err && err.message || err)); });
+    btnGuardar.className = 'btn-accent-sm recibo-grande';
+    btnGuardar.textContent = '💾 Guardar PDF';
+    btnGuardar.title = 'Guarda el PDF de esta cotización';
+    btnGuardar.onclick = () => guardarGuiado();
+    if (!SOPORTADO) {   // iPad, Safari, Firefox: solo se baja el archivo
+      const principal0 = acciones.querySelector('.recibo-principal');
+      const primero0 = principal0 ? principal0.querySelector('button') : null;
+      if (principal0) principal0.insertBefore(btnGuardar, primero0 ? primero0.nextSibling : null);
+      return;
+    }
 
     btnCarpeta = document.createElement('button');
     btnCarpeta.className = 'link-btn';
@@ -421,10 +476,12 @@
     estadoEl = document.createElement('p');
     estadoEl.style.cssText = 'font-size:12px;color:var(--text-secondary);margin-top:10px;';
 
-    const primero = acciones.querySelector(':scope > button');   // solo botones directos (el selector de hoja blanca/negra lleva los suyos)
-    acciones.insertBefore(btnGuardar, primero ? primero.nextSibling : null);
-    const p = acciones.querySelector(':scope > p');
-    acciones.insertBefore(estadoEl, p);
+    // Junto a los botones principales (Mandar por WhatsApp / Corregir), y el estado debajo de ellos.
+    const principal = acciones.querySelector('.recibo-principal');
+    const primero = principal ? principal.querySelector('button') : null;
+    if (principal) principal.insertBefore(btnGuardar, primero ? primero.nextSibling : null);
+    else acciones.insertBefore(btnGuardar, acciones.firstChild);
+    (principal || btnGuardar).after(estadoEl);
     estadoEl.after(btnCarpeta);
     pintarEstado();
   }

@@ -67,7 +67,15 @@ function faltaCampo(id, mensaje) {
 }
 
 // ---------- Ayuda ----------
-function abrirAyuda() { document.getElementById('ayudaModal').classList.remove('hidden'); }
+// abrirAyuda('ayuda-cotizar') abre la ayuda y baja directo a esa parte.
+function abrirAyuda(seccion) {
+  const modal = document.getElementById('ayudaModal');
+  modal.classList.remove('hidden');
+  modal.querySelectorAll('.ayuda-bloque').forEach(b => b.classList.remove('ayuda-destacada'));
+  const bloque = typeof seccion === 'string' ? document.getElementById(seccion) : null;
+  if (bloque) { bloque.classList.add('ayuda-destacada'); bloque.scrollIntoView({ block: 'start' }); }
+  else modal.querySelector('.card').scrollTop = 0;
+}
 function cerrarAyuda() { document.getElementById('ayudaModal').classList.add('hidden'); }
 
 // ---------- Ver / imprimir el PDF ----------
@@ -138,3 +146,30 @@ async function forzarActualizacion() {
 setTimeout(revisarVersionNueva, 4000);
 setInterval(revisarVersionNueva, 20 * 60 * 1000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) revisarVersionNueva(); });
+
+
+// ---------- Guías con pasos grandes (guardar y mandar el PDF) ----------
+// mostrarGuia({ titulo, intro, pasos: ['html', ...], nota, botones: [{ texto, clase, alHacerClic(boton) }] })
+function cerrarGuia() { const m = document.getElementById('guiaModal'); if (m) m.remove(); }
+function mostrarGuia(o) {
+  cerrarGuia();
+  const m = document.createElement('div');
+  m.id = 'guiaModal'; m.className = 'guia-fondo';
+  m.innerHTML = '<div class="guia-card">' +
+    '<h1>' + o.titulo + '</h1>' +
+    (o.intro ? '<p class="guia-intro">' + o.intro + '</p>' : '') +
+    '<ol class="guia-pasos">' + (o.pasos || []).map(p => '<li>' + p + '</li>').join('') + '</ol>' +
+    (o.nota ? '<div class="guia-nota">' + o.nota + '</div>' : '') +
+    '<div class="guia-botones"></div></div>';
+  const cont = m.querySelector('.guia-botones');
+  (o.botones || [{ texto: 'Entendido' }]).forEach(b => {
+    const x = document.createElement('button');
+    x.className = b.clase || 'btn-accent-sm guia-grande';
+    x.textContent = b.texto;
+    x.onclick = () => (b.alHacerClic ? b.alHacerClic(x) : cerrarGuia());
+    cont.appendChild(x);
+  });
+  document.body.appendChild(m);
+}
+function guiaOculta() { try { return localStorage.getItem('sl_sin_guia') === '1'; } catch (e) { return false; } }
+function ocultarGuiaParaSiempre() { try { localStorage.setItem('sl_sin_guia', '1'); } catch (e) { /* ignorar */ } cerrarGuia(); showToast('Listo: ya no se mostrará esta explicación'); }

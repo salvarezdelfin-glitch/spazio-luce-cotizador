@@ -88,6 +88,7 @@
     </nav>
     <div class="sidebar-footer">
       <button class="nav-item ayuda-btn" onclick="abrirAyuda()">❓ ¿Cómo se usa?</button>
+      <a class="nav-item ayuda-btn" href="manual.html" target="_blank" rel="noopener" style="text-decoration:none;">📖 Manual (para imprimir)</a>
       <div class="tam-letra" title="Tamaño de la letra">
         <span>Letra</span>
         <button data-z="1" style="font-size:12px" onclick="setTamLetra(1)" aria-label="Letra normal">A</button>
@@ -193,36 +194,43 @@
     <div id="ayudaModal" class="hidden" style="position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:300; display:flex; align-items:center; justify-content:center; padding:20px;" onclick="if(event.target===this)cerrarAyuda()">
       <div class="card ayuda-card" style="max-width:640px; width:100%; max-height:90vh; overflow-y:auto;">
         <h1 style="font-size:20px;">¿Cómo se usa?</h1>
-        <div class="ayuda-bloque">
+        <p style="margin:6px 0 0;"><a class="link-btn" href="manual.html" target="_blank" rel="noopener" style="font-size:14px;">📖 Abrir el manual completo (para leer o imprimir)</a></p>
+        <div class="ayuda-bloque" id="ayuda-diferencia">
           <h3>🤔 ¿Cotización o presupuesto?</h3>
           <p><b>Cotización:</b> para <b>vender productos</b> del catálogo (luces, candiles, persianas, cortinas, pisos y muros). El precio ya viene puesto y la app calcula cajas y m².</p>
-          <p><b>Presupuesto:</b> para <b>trabajos y obra</b> (instalación, remodelación, mano de obra). Tú escribes cada concepto con su precio, o subes un Excel, PDF o Word. No usa el catálogo.</p>
-          <p>Si lo que vendes está en el catálogo, haz una cotización; si no, un presupuesto. Las dos salen en el mismo formato y se mandan igual.</p>
+          <p><b>Presupuesto:</b> para <b>trabajos y obra</b> (instalación, remodelación, mano de obra). Tú escribes cada concepto con su precio, o subes un Excel, PDF, Word o una foto. No usa el catálogo.</p>
         </div>
-        <div class="ayuda-bloque">
-          <h3>🧾 Hacer una cotización</h3>
+        <div class="ayuda-bloque" id="ayuda-cotizar">
+          <h3>🧾 Hacer una cotización, paso a paso</h3>
           <ol>
-            <li>En el menú pulsa <b>Cotizar con catálogo</b> (o el botón grande del Inicio).</li>
-            <li>Escribe el <b>nombre del cliente</b>.</li>
-            <li>Busca el producto (por ejemplo "persiana" o "panel") y pulsa <b>+ Agregar</b>. Si no lo encuentras, usa <b>+ Agregar producto manual</b>.</li>
-            <li>Escribe la <b>cantidad</b> o las <b>medidas</b> en el renglón que apareció.</li>
-            <li>Abajo, pulsa el botón amarillo <b>Generar Cotización</b>. Ese botón y el total te siguen mientras bajas.</li>
-            <li>En la pantalla siguiente: <b>Guardar en carpeta</b> o <b>Enviar por WhatsApp</b>.</li>
+            <li>En el menú pulsa <b>Cotizar con catálogo</b> (o el botón amarillo grande del Inicio).</li>
+            <li>Escribe el <b>nombre del cliente</b> y su <b>teléfono</b>. Lo demás es opcional.</li>
+            <li>En <b>¿Qué producto buscas?</b> escribe una palabra (por ejemplo "persiana") y pulsa <b>+ Agregar</b> junto al producto que quieres.</li>
+            <li>Baja a <b>Tu lista de productos</b> y escribe la <b>cantidad</b> o las <b>medidas</b> (ancho y alto) en cada renglón. El precio ya viene solo.</li>
+            <li>Cuando termines, pulsa el botón amarillo <b>Generar Cotización</b>. Ese botón y el total te siguen mientras bajas.</li>
           </ol>
         </div>
-        <div class="ayuda-bloque">
+        <div class="ayuda-bloque" id="ayuda-enviar">
+          <h3>💾📲 Guardar el PDF y mandárselo al cliente</h3>
+          <ol>
+            <li>Pulsa <b>💾 Guardar PDF</b>. La primera vez te pregunta dónde: elige <b>Elegir una carpeta</b> (por ejemplo Documentos › Spazio Luce). Desde ahí siempre encuentras tus cotizaciones, una carpeta por cliente.</li>
+            <li>Pulsa <b>📲 Mandar por WhatsApp</b> y sigue los 3 pasos que te muestra: se baja el PDF, se abre el chat del cliente y tú adjuntas el archivo con el clip 📎 → Documento.</li>
+          </ol>
+          <p>¿No encuentras un PDF que bajaste? En Chrome pulsa <b>Ctrl + J</b>: sale la lista de descargas y ahí <b>Mostrar en carpeta</b>.</p>
+        </div>
+        <div class="ayuda-bloque" id="ayuda-corregir">
           <h3>✏️ Corregir una cotización ya hecha</h3>
-          <p>En la pantalla de la cotización pulsa <b>Editar cotización</b>. O, desde el Inicio, busca la cotización en la lista y pulsa <b>Editar</b>. Al terminar, pulsa <b>Guardar cambios</b>.</p>
+          <p>En la pantalla de la cotización pulsa <b>Corregir cotización</b>. O, desde el Inicio, busca la cotización en la lista y pulsa <b>Editar</b>. Al terminar, pulsa <b>Guardar cambios</b>.</p>
         </div>
-        <div class="ayuda-bloque">
+        <div class="ayuda-bloque" id="ayuda-presupuesto">
           <h3>📋 Hacer un presupuesto a mano</h3>
-          <p>Pulsa <b>Presupuesto a mano</b>. Escribe el cliente y agrega renglones con <b>+ Agregar renglón manual</b> (cada uno con su Concepto, cantidad y precio). También puedes subir un Excel, PDF o Word.</p>
+          <p>Pulsa <b>Presupuesto a mano</b>. Escribe el cliente y agrega renglones con <b>+ Agregar renglón manual</b> (cada uno con su Concepto, cantidad y precio). También puedes subir un Excel, PDF, Word o una foto de un presupuesto.</p>
         </div>
-        <div class="ayuda-bloque">
+        <div class="ayuda-bloque" id="ayuda-directorio">
           <h3>📒 Buscar un teléfono o una dirección</h3>
           <p>Pulsa <b>Directorio</b> y escribe en el buscador el nombre, la colonia o el oficio (por ejemplo "albañil").</p>
         </div>
-        <div class="ayuda-bloque">
+        <div class="ayuda-bloque" id="ayuda-letra">
           <h3>🔠 ¿Se ve muy chico o muy grande?</h3>
           <p>Abajo en el menú, junto a "Letra", hay tres letras <b>A</b>: elige la que se te lea mejor.</p>
         </div>
@@ -344,6 +352,7 @@
     <div id="view-cotizador" class="hidden">
       <div class="topbar">
         <div><h2>Cotizar con catálogo</h2><div class="sub">Para vender productos del catálogo (el precio ya viene puesto) · tres pasos: el cliente, los productos y generar</div></div>
+        <button class="btn-ghost-sm" onclick="abrirAyuda('ayuda-cotizar')">❓ ¿Cómo hago esto?</button>
       </div>
       <div class="quote-form">
         <div class="paso"><span class="paso-n">1</span> ¿Para quién es la cotización?</div>
@@ -353,50 +362,39 @@
             <div class="input-wrap"><input id="quoteClient" placeholder="Nombre completo" /></div>
           </div>
           <div class="field">
-            <label>Folio</label>
-            <div class="input-wrap"><input id="quoteFolio" disabled /></div>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="field">
             <label>Teléfono (WhatsApp)</label>
             <div class="input-wrap"><input id="quotePhone" placeholder="10 dígitos" /></div>
           </div>
-          <div class="field">
-            <label>Correo (opcional)</label>
-            <div class="input-wrap"><input id="quoteEmail" placeholder="correo@ejemplo.com" /></div>
-          </div>
-          <div class="field">
-            <label>Dirección / Proyecto (opcional)</label>
-            <div class="input-wrap"><input id="quoteAddress" placeholder="Ubicación o nombre del proyecto" /></div>
-          </div>
         </div>
-        <div class="form-row">
-          <div class="field">
-            <label>Nota / alcance incluido (opcional)</label>
-            <div class="input-wrap"><input id="quoteNote" placeholder="Ej: partida de bodega incluida..." /></div>
-          </div>
-        </div>
-
-        <div class="paso"><span class="paso-n">2</span> Agrega los productos <small>(busca abajo y pulsa "+ Agregar", o escribe en el agregado rápido)</small></div>
-        <div class="quickadd-box">
-          <div class="quickadd-label">Agregado rápido</div>
-          <div class="quickadd-row">
-            <div class="input-wrap" style="flex:1;">
-              <input id="quickAdd" placeholder='Ej. "15 m2 de tapiz acanalado" o "3 paneles led 12w"' onkeydown="if(event.key==='Enter'){event.preventDefault();handleQuickAdd();}" />
+        <details class="mas-datos" id="quoteMasDatos">
+          <summary>＋ Más datos del cliente <small>(correo, dirección o proyecto, nota) · si no los necesitas, sáltalos</small></summary>
+          <div class="form-row">
+            <div class="field">
+              <label>Correo</label>
+              <div class="input-wrap"><input id="quoteEmail" placeholder="correo@ejemplo.com" /></div>
             </div>
-            <button class="btn-accent-sm" style="width:auto;" onclick="handleQuickAdd()">+ Agregar</button>
+            <div class="field">
+              <label>Dirección o nombre del proyecto</label>
+              <div class="input-wrap"><input id="quoteAddress" placeholder="Ubicación o nombre del proyecto" /></div>
+            </div>
           </div>
-          <div id="quickAddSuggestions"></div>
-        </div>
+          <div class="form-row">
+            <div class="field">
+              <label>Nota que saldrá en la cotización</label>
+              <div class="input-wrap"><input id="quoteNote" placeholder="Ej: partida de bodega incluida..." /></div>
+            </div>
+            <div class="field">
+              <label>Folio (se pone solo)</label>
+              <div class="input-wrap"><input id="quoteFolio" disabled /></div>
+            </div>
+          </div>
+        </details>
 
+        <div class="paso"><span class="paso-n">2</span> Agrega los productos <small>(escribe lo que buscas y pulsa "+ Agregar" junto al producto)</small></div>
         <div class="catalog-box">
-          <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
-            <button class="btn-ghost-sm lab-active" id="ivaToggleBtn" type="button" onclick="toggleIva()">🧾 IVA incluido (16%)</button>
-            <button class="btn-ghost-sm" id="labToggleBtn" type="button" onclick="toggleLabPrice()">💰 Ver precio LAB</button>
-          </div>
+          <label class="buscar-etiqueta" for="catalogSearch">🔎 ¿Qué producto buscas?</label>
           <div class="input-wrap" style="margin-bottom:10px;">
-            <input id="catalogSearch" autocomplete="off" placeholder="Buscar en TODO el catálogo: media luna, panel 12w, persiana, tapiz…" oninput="renderCatalogItems()" onkeydown="if(event.key==='Escape')clearCatalogSearch()" />
+            <input id="catalogSearch" autocomplete="off" placeholder="Escribe aquí: persiana, panel led, tapiz, candil…" oninput="renderCatalogItems()" onkeydown="if(event.key==='Escape')clearCatalogSearch()" />
           </div>
           <div class="catalog-groups" id="catalogGroups"></div>
           <div class="catalog-tabs" id="catalogTabs"></div>
@@ -405,18 +403,37 @@
           <div class="catalog-items" id="catalogItems"></div>
         </div>
 
+        <div class="lista-titulo">🛒 Tu lista de productos</div>
         <div class="col-headers">
           <div>Producto</div><div>Cant.</div><div>P. Unitario</div><div>Importe</div><div></div>
         </div>
         <div id="productRows"></div>
-        <button class="add-row-btn" onclick="addProductRow()">+ Agregar producto manual</button>
-        <input type="file" id="excelInput" accept=".xlsx,.xls,.csv,.pdf,.png,.jpg,.jpeg,.webp" class="hidden" onchange="handleFileImport(event)" />
-        <input type="file" id="productoFotoInput" accept="image/png,image/jpeg,image/webp,image/gif" class="hidden" onchange="onProductoFotoSelected(event)" />
-        <button class="add-row-btn" style="margin-top:8px;border-color:var(--accent);color:var(--accent);" onclick="document.getElementById('excelInput').click()">📥 Importar desde Excel, PDF o imagen</button>
-        <a class="add-row-btn formato-link" href="assets/Formato-Spazio-Luce.xlsx" download>⬇️ Descargar el formato de Excel (lo llenas y lo subes aquí)</a>
-        <p style="font-size:11px;color:var(--text-secondary);margin:6px 2px 0;">
-          Excel: columnas <b>Producto</b>, <b>Cantidad</b> y <b>Precio Unitario</b> (y opcional Sección/Unidad). PDF: intenta leer tablas de precios o cotizaciones automáticamente — revisa siempre lo que se agregó antes de generar, la lectura de PDF no es perfecta.
-        </p>
+        <button class="add-row-btn" onclick="addProductRow()">+ Agregar un producto que no está en el catálogo</button>
+
+        <details class="mas-opciones">
+          <summary>⚙️ Más opciones <small>(IVA, precio LAB, agregado rápido, subir un archivo)</small></summary>
+          <div class="mas-opciones-fila">
+            <button class="btn-ghost-sm lab-active" id="ivaToggleBtn" type="button" onclick="toggleIva()">🧾 IVA incluido (16%)</button>
+            <button class="btn-ghost-sm" id="labToggleBtn" type="button" onclick="toggleLabPrice()">💰 Ver precio LAB</button>
+          </div>
+          <div class="quickadd-box">
+            <div class="quickadd-label">Agregado rápido</div>
+            <div class="quickadd-row">
+              <div class="input-wrap" style="flex:1;">
+                <input id="quickAdd" placeholder='Ej. "15 m2 de tapiz acanalado" o "3 paneles led 12w"' onkeydown="if(event.key==='Enter'){event.preventDefault();handleQuickAdd();}" />
+              </div>
+              <button class="btn-accent-sm" style="width:auto;" onclick="handleQuickAdd()">+ Agregar</button>
+            </div>
+            <div id="quickAddSuggestions"></div>
+          </div>
+          <input type="file" id="excelInput" accept=".xlsx,.xls,.csv,.pdf,.png,.jpg,.jpeg,.webp" class="hidden" onchange="handleFileImport(event)" />
+          <input type="file" id="productoFotoInput" accept="image/png,image/jpeg,image/webp,image/gif" class="hidden" onchange="onProductoFotoSelected(event)" />
+          <button class="add-row-btn" style="margin-top:8px;border-color:var(--accent);color:var(--accent);" onclick="document.getElementById('excelInput').click()">📥 Importar desde Excel, PDF o imagen</button>
+          <a class="add-row-btn formato-link" href="assets/Formato-Spazio-Luce.xlsx" download>⬇️ Descargar el formato de Excel (lo llenas y lo subes aquí)</a>
+          <p style="font-size:11px;color:var(--text-secondary);margin:6px 2px 0;">
+            Excel: columnas <b>Producto</b>, <b>Cantidad</b> y <b>Precio Unitario</b> (y opcional Sección/Unidad). PDF e imágenes: se leen automáticamente — revisa siempre lo que se agregó antes de generar, la lectura no es perfecta.
+          </p>
+        </details>
 
         <div class="paso"><span class="paso-n">3</span> Revisa el total y genera <small>(el botón amarillo de abajo)</small></div>
         <div class="totals-box">
@@ -447,7 +464,8 @@
 
     <div id="view-presupuestos" class="hidden">
       <div class="topbar">
-        <div><h2>Presupuesto a mano</h2><div class="sub">Para trabajos y obra: escribes tú los conceptos y precios, o subes uno ya armado (Excel, PDF o Word) · no usa el catálogo</div></div>
+        <div><h2>Presupuesto a mano</h2><div class="sub">Para trabajos y obra: escribes tú los conceptos y precios, o subes uno ya armado (Excel, PDF, Word o foto) · no usa el catálogo</div></div>
+        <button class="btn-ghost-sm" onclick="abrirAyuda('ayuda-presupuesto')">❓ ¿Cómo hago esto?</button>
       </div>
 
       <div class="quote-form">
@@ -472,48 +490,56 @@
         </div>
         <div class="form-row">
           <div class="field">
-            <label>Folio</label>
-            <div class="input-wrap"><input id="presuFolio" placeholder="Se genera automático si lo dejas vacío" /></div>
-          </div>
-          <div class="field">
-            <label>Fecha</label>
-            <div class="input-wrap"><input id="presuFecha" type="date" oninput="this.dataset.auto=''" /></div>
-          </div>
-          <div class="field">
-            <label>Teléfono / Correo (opcional, para WhatsApp y correo)</label>
+            <label>Teléfono o correo del cliente (para mandarle la cotización)</label>
             <div class="input-wrap"><input id="presuContact" placeholder="10 dígitos o correo" /></div>
           </div>
         </div>
-        <div class="form-row">
-          <div class="field">
-            <label>Nota</label>
-            <div class="input-wrap"><input id="presuNote" placeholder="Ej: W.C. y lavabo los proporciona el cliente" /></div>
+        <details class="mas-datos" id="presuMasDatos">
+          <summary>＋ Más datos <small>(folio, fecha, nota, IVA) · si no los necesitas, sáltalos</small></summary>
+          <div class="form-row">
+            <div class="field">
+              <label>Folio</label>
+              <div class="input-wrap"><input id="presuFolio" placeholder="Se genera solo si lo dejas vacío" /></div>
+            </div>
+            <div class="field">
+              <label>Fecha</label>
+              <div class="input-wrap"><input id="presuFecha" type="date" oninput="this.dataset.auto=''" /></div>
+            </div>
           </div>
-        </div>
+          <div class="form-row">
+            <div class="field">
+              <label>Nota que saldrá en la cotización</label>
+              <div class="input-wrap"><input id="presuNote" placeholder="Ej: W.C. y lavabo los proporciona el cliente" /></div>
+            </div>
+          </div>
+          <label class="iva-toggle">
+            <input type="checkbox" id="presuIvaToggle" onchange="recalcPresuTotals()" />
+            Sumar IVA 16% al total (el IVA nunca se le desglosa al cliente en el PDF)
+          </label>
+        </details>
 
-        <label class="iva-toggle">
-          <input type="checkbox" id="presuIvaToggle" onchange="recalcPresuTotals()" />
-          Incluir IVA 16% en el total (opcional — nunca se le desglosa al cliente en el PDF)
-        </label>
-
+        <div class="lista-titulo">🛒 Tus renglones</div>
         <div class="col-headers" style="grid-template-columns: 1.6fr 2fr .7fr .6fr .8fr .9fr auto;">
           <div>Sección</div><div>Concepto</div><div>Un</div><div>Cant</div><div>P. Unitario</div><div>Importe</div><div></div>
         </div>
         <div id="presupuestoRows" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;"></div>
         <button class="add-row-btn" onclick="addPresuRow()">+ Agregar renglón manual</button>
 
-        <div class="margen-box no-print">
-          <div class="margen-title">Ajuste de precios</div>
-          <div class="margen-row">
-            <div class="input-wrap margen-pct"><input id="margenPct" type="number" min="1" max="99" step="1" value="30" /></div><span>%</span>
-            <div class="input-wrap margen-modo"><select id="margenModo">
-              <option value="venta">÷ 0.70</option>
-              <option value="sumar">× 1.30</option>
-            </select></div>
-            <button class="btn-accent-sm" style="width:auto;" onclick="aplicarMargenPresupuesto()">Aplicar a los precios</button>
-            <button class="btn-ghost-sm hidden" id="margenDeshacerBtn" onclick="deshacerMargenPresupuesto()">↩ Deshacer</button>
+        <details class="mas-opciones no-print">
+          <summary>⚙️ Si los precios son los del proveedor <small>(ajuste de precios)</small></summary>
+          <div class="margen-box no-print">
+            <div class="margen-title">Ajuste de precios</div>
+            <div class="margen-row">
+              <div class="input-wrap margen-pct"><input id="margenPct" type="number" min="1" max="99" step="1" value="30" /></div><span>%</span>
+              <div class="input-wrap margen-modo"><select id="margenModo">
+                <option value="venta">÷ 0.70</option>
+                <option value="sumar">× 1.30</option>
+              </select></div>
+              <button class="btn-accent-sm" style="width:auto;" onclick="aplicarMargenPresupuesto()">Aplicar a los precios</button>
+              <button class="btn-ghost-sm hidden" id="margenDeshacerBtn" onclick="deshacerMargenPresupuesto()">↩ Deshacer</button>
+            </div>
           </div>
-        </div>
+        </details>
 
         <div class="totals-box">
           <div>Subtotal: <span id="presuSubtotalVal">$0.00</span></div>
@@ -636,24 +662,34 @@
 
     <div id="view-recibo" class="hidden">
       <div class="topbar no-print">
-        <div><h2>Cotización generada</h2><div class="sub">Guárdala como PDF y mándala tú por WhatsApp o correo</div></div>
-        <button class="btn-accent-sm" onclick="showView('dashboard')">← Volver al Dashboard</button>
+        <div><h2>✅ Cotización lista</h2><div class="sub">Ya quedó guardada en el sistema. Ahora mándala por WhatsApp o guárdala como PDF.</div></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn-ghost-sm" onclick="abrirAyuda('ayuda-enviar')">❓ ¿Cómo la mando?</button>
+          <button class="btn-accent-sm" onclick="showView('dashboard')">← Volver al Inicio</button>
+        </div>
       </div>
 
       <div class="recibo-actions no-print">
-        <div class="tema-recibo">
-          <span>Hoja:</span>
-          <button data-t="claro" type="button" onclick="setTemaRecibo('claro')">☀️ Blanca</button>
-          <button data-t="oscuro" type="button" onclick="setTemaRecibo('oscuro')">🌑 Negra</button>
+        <div class="recibo-principal">
+          <button class="btn-accent-sm recibo-grande" id="reciboWhatsBtn">📲 Mandar por WhatsApp</button>
+          <button class="btn-accent-sm recibo-grande" id="reciboEditBtn">✏️ Corregir cotización</button>
         </div>
-        <button class="btn-primary" style="max-width:220px;display:inline-block;margin-right:10px;" onclick="verPdfCotizacion()">🖨️ Ver / Imprimir PDF</button>
-        <button class="btn-accent-sm" id="reciboEditBtn" style="margin-right:10px;">✏️ Editar cotización</button>
-        <button class="btn-accent-sm" id="reciboWhatsBtn" style="margin-right:10px;">Enviar por WhatsApp (PDF + mensaje)</button>
-        <button class="btn-accent-sm" id="reciboWhatsMsgBtn" style="margin-right:10px;">WhatsApp solo mensaje</button>
-        <button class="btn-accent-sm" id="reciboMailBtn">Abrir correo con mensaje</button>
-        <p style="font-size:12px;color:var(--text-secondary);margin-top:14px;max-width:600px;">
-          En celular o iPad, "Enviar por WhatsApp" abre la hoja de compartir con el PDF y el mensaje juntos (eliges WhatsApp y el chat del cliente). En computadora descarga el PDF y abre el chat del cliente con el mensaje escrito: solo arrastra el PDF al chat. WhatsApp no permite adjuntar el archivo solo desde una página web.
-        </p>
+        <details class="recibo-mas">
+          <summary>Más opciones <small>(ver el PDF, solo el mensaje, correo, hoja blanca o negra)</small></summary>
+          <div class="tema-recibo">
+            <span>Hoja:</span>
+            <button data-t="claro" type="button" onclick="setTemaRecibo('claro')">☀️ Blanca</button>
+            <button data-t="oscuro" type="button" onclick="setTemaRecibo('oscuro')">🌑 Negra</button>
+          </div>
+          <div class="recibo-mas-botones">
+            <button class="btn-ghost-sm" onclick="verPdfCotizacion()">🖨️ Ver / Imprimir PDF</button>
+            <button class="btn-ghost-sm" id="reciboWhatsMsgBtn">WhatsApp solo mensaje</button>
+            <button class="btn-ghost-sm" id="reciboMailBtn">Abrir correo con mensaje</button>
+          </div>
+          <p class="recibo-ayuda">
+            En celular o iPad, "Mandar por WhatsApp" abre la hoja de compartir con el PDF y el mensaje juntos (eliges WhatsApp y el chat del cliente). En computadora baja el PDF y abre el chat del cliente con el mensaje escrito: tú adjuntas el archivo con el clip 📎 (WhatsApp no permite adjuntarlo solo desde una página web).
+          </p>
+        </details>
       </div>
 
       <div class="recibo-card" id="reciboCard"></div>
